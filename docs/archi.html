@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EvenOut - System Architecture</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #10b981;
+            --accent: #f59e0b;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #cbd5e1;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .header h1 {
+            color: var(--primary);
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+        }
+
+        .header p {
+            color: #64748b;
+            margin: 0;
+            font-size: 1.1em;
+        }
+
+        .architecture-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        .layer {
+            border: 2px dashed var(--border);
+            border-radius: 16px;
+            padding: 30px 20px 20px;
+            position: relative;
+            background-color: rgba(241, 245, 249, 0.5);
+        }
+
+        .layer-title {
+            position: absolute;
+            top: -12px;
+            left: 30px;
+            background-color: var(--bg);
+            padding: 0 15px;
+            font-weight: 700;
+            color: #64748b;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            border-radius: 20px;
+        }
+
+        .nodes-wrapper {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            flex-wrap: wrap;
+        }
+
+        .node {
+            background-color: var(--card-bg);
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            flex: 1;
+            min-width: 220px;
+            max-width: 300px;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .node:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        }
+
+        .node.client { border-top: 4px solid var(--primary); }
+        .node.api { border-top: 4px solid #8b5cf6; }
+        .node.database { border-top: 4px solid var(--secondary); }
+        .node.external { border-top: 4px solid var(--accent); }
+
+        .node h3 {
+            margin: 0 0 12px 0;
+            font-size: 1.2em;
+        }
+
+        .node.client h3 { color: var(--primary); }
+        .node.api h3 { color: #8b5cf6; }
+        .node.database h3 { color: var(--secondary); }
+        .node.external h3 { color: var(--accent); }
+
+        .node ul {
+            text-align: left;
+            margin: 0;
+            padding-left: 20px;
+            font-size: 0.85em;
+            color: #475569;
+        }
+
+        .node ul li {
+            margin-bottom: 6px;
+        }
+
+        .flow-arrow {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 28px;
+            font-weight: bold;
+            margin: -10px 0;
+            z-index: 10;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nodes-wrapper {
+                flex-direction: column;
+                align-items: center;
+            }
+            .node {
+                width: 100%;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>EvenOut Architecture</h1>
+        <p>Smart Group Expense Management & Settlement System</p>
+    </div>
+
+    <div class="architecture-container">
+        
+        <!-- Presentation Layer -->
+        <div class="layer">
+            <div class="layer-title">1. Client / Presentation Layer</div>
+            <div class="nodes-wrapper">
+                <div class="node client">
+                    <h3>Flutter Mobile App</h3>
+                    <ul>
+                        <li>Riverpod State Management</li>
+                        <li>UI: Dashboard, QR Scanner, Bill OCR</li>
+                        <li>Hardware: Camera & Microphone Access</li>
+                        <li>Supabase Realtime Listeners</li>
+                    </ul>
+                </div>
+                <div class="node client">
+                    <h3>Next.js Web Dashboard</h3>
+                    <ul>
+                        <li>Admin Analytics Interface</li>
+                        <li>Tailwind CSS Styling</li>
+                        <li>Group Ledger Overviews</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="flow-arrow">⇅</div>
+
+        <!-- API / Backend Layer -->
+        <div class="layer">
+            <div class="layer-title">2. API Gateway & Business Logic</div>
+            <div class="nodes-wrapper">
+                <div class="node api">
+                    <h3>NestJS Monolith API</h3>
+                    <ul>
+                        <li>RESTful Endpoints & Zod Validation</li>
+                        <li>"Chaos Roulette" Split Algorithms</li>
+                        <li>Duolingo-style Notification Engine</li>
+                        <li>Orchestrates external LLM & OCR API calls</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="flow-arrow">⇅</div>
+
+        <!-- Database Layer -->
+        <div class="layer">
+            <div class="layer-title">3. Data & BaaS Layer (Supabase)</div>
+            <div class="nodes-wrapper">
+                <div class="node database">
+                    <h3>PostgreSQL DB</h3>
+                    <ul>
+                        <li>Ledger, Users, Groups Tables</li>
+                        <li>SplitScore View Calculations</li>
+                        <li>Strict Row-Level Security (RLS)</li>
+                    </ul>
+                </div>
+                <div class="node database">
+                    <h3>Auth & Realtime</h3>
+                    <ul>
+                        <li>Magic Link / OTP Auth</li>
+                        <li>WebSocket Realtime Replication</li>
+                    </ul>
+                </div>
+                <div class="node database">
+                    <h3>Storage</h3>
+                    <ul>
+                        <li>Receipt Image Buckets</li>
+                        <li>Avatar & QR Code Assets</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="flow-arrow">⇊</div>
+
+        <!-- External Integrations Layer -->
+        <div class="layer">
+            <div class="layer-title">4. External APIs & Services</div>
+            <div class="nodes-wrapper">
+                <div class="node external">
+                    <h3>eSewa Wallet</h3>
+                    <ul>
+                        <li>Deep Linking (esewa://)</li>
+                        <li>One-Tap Direct Settlements</li>
+                    </ul>
+                </div>
+                <div class="node external">
+                    <h3>Google Cloud Vision</h3>
+                    <ul>
+                        <li>Optical Character Recognition</li>
+                        <li>Receipt Line-Item Parsing</li>
+                    </ul>
+                </div>
+                <div class="node external">
+                    <h3>Groq / Gemini LLM</h3>
+                    <ul>
+                        <li>Voice-to-JSON Parsing</li>
+                        <li>Extracts Payer, Payee, Amount</li>
+                    </ul>
+                </div>
+                <div class="node external">
+                    <h3>Firebase FCM</h3>
+                    <ul>
+                        <li>Context-Aware Push Notifications</li>
+                        <li>Debt Reminders & Payday Nudges</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
