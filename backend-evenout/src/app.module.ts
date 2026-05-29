@@ -9,6 +9,7 @@ import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
 import { GroupsModule } from './groups/groups.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { SettlementsModule } from './settlements/settlements.module';
+import { BalancesModule } from './balances/balances.module';
 
 @Module({
   imports: [
@@ -28,6 +29,8 @@ import { SettlementsModule } from './settlements/settlements.module';
     ExpensesModule,
 
     SettlementsModule,
+
+    BalancesModule,
   ],
   controllers: [AppController],
   providers: [
