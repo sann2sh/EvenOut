@@ -10,9 +10,14 @@ Solution: A smart app that handles group expenses, scanning, splitting, tracking
 The project utilizes a strict monorepo architecture to ensure synchronized models, types, and rapid deployment.
 ```plaintext
 /evenout-monorepo
-├── /backend   # Main monolithic API (Node.js/NestJS) deployed on Render
-├── /mobile   # Primary user application (Flutter + Riverpod)
-└── /supabase   # Database schemas, RLS policies, and SQL Views
+├── /backend-evenout # Main monolithic API (Node.js/NestJS) deployed on Render
+        supabase-migrations   # Database schemas, RLS policies, and SQL Views
+├── /frontend_evenout   # Primary user application (Flutter + Riverpod)
+
+
+Deployment: render auto deploy on git push
+Database: supabase
+   
 ```
 
 
@@ -334,3 +339,46 @@ Flutter displays a button: "Ashutosh, pay Santosh Rs. 100".
 When Ashutosh taps it, it triggers the eSewa Deep Link. When confirmed, it writes a standard record to the settlements table.
 
 This gives you the exact Splitwise functionality without corrupting your audit logs or redesigning your database! To help you visualize exactly how this graph transformation works under the hood, I've generated an interactive simulator below.
+
+.
+
+
+
+How to Secure Your peer_balances View
+To patch this security vulnerability before deploying your backend or hooking it up to your mobile app, use one of these two industry-standard approaches:
+
+Option A: Use a Security Invoker View (Recommended for Postgres 15+)
+If your Supabase instance is running Postgres 15 or newer, you can explicitly force the view to respect the querying user's active RLS policies by appending with (security_invoker = true) when creating it:
+
+SQL
+CREATE VIEW peer_balances 
+WITH (security_invoker = true) AS 
+SELECT 
+    ...
+FROM expenses e
+JOIN group_members gm ON ...;
+Now, when your Flutter client requests data from this view, Postgres passes down the user's JWT context, forcing the query to respect the RLS gates on the underlying expenses and group_members tables.
+
+Option B: Wrap it in a Secure Stored Procedure (RPC)
+If you prefer not to manage view configurations, convert the view's underlying query into a Supabase Remote Procedure Call (RPC) function that takes a group_id as an argument and enforces membership manually inside the function body:
+
+SQL
+CREATE OR REPLACE FUNCTION get_peer_balances(target_group_id UUID)
+RETURNS TABLE (user_id UUID, net_balance NUMERIC) 
+LANGUAGE plpgsql
+SECURITY INVOKER -- Forces compliance with active user permissions
+AS $$
+BEGIN
+    -- Verify the requesting user is actually a member of the group
+    IF EXISTS (
+        SELECT 1 FROM group_members 
+        WHERE group_id = target_group_id AND user_id = auth.uid()
+    ) THEN
+        RETURN QUERY
+        SELECT ... -- Your optimization logic filtered by target_group_id
+    ELSE
+        RAISE EXCEPTION 'Access Denied: You are not a member of this group.';
+    END IF;
+END;
+$$;
+This prevents any accidental structural data leaks across your hackathon project, keeping your ledger secure and multi-tenant friendly!
