@@ -215,6 +215,32 @@ Frontend: Implement the camera UI. When a photo is taken, upload the image direc
 Backend: Intercept the public URL of the uploaded image and send it to the Google Cloud Vision API (or Anthropic API as noted in your stack). Parse the raw text into structured JSON and return it to the client.
 Frontend: Render the interactive UI allowing users to assign the parsed line items to specific group members.
 
+Function: Automated receipt parsing.
+Logic: 1. Flutter captures the receipt image and uploads it to a Supabase Storage bucket.
+2. Flutter sends the public URL to a NestJS endpoint.
+3. NestJS calls the Google Cloud Vision API, parses the text block, and extracts structured line items (Item, Qty, Price).
+4. NestJS returns a JSON array to Flutter, where the user can assign items to specific group members.
+Functional Description: Minimizes data-entry friction by scanning physical receipt papers and auto-populating structured split allocations.
+System Pipeline Execution Workflow:
+Plaintext
+[Flutter Client: Capture Image] 
+       │ 
+       ▼ (Upload)
+[Supabase Storage Bucket: /receipt-images]
+       │
+       ▼ (Public URL Object Hook)
+[NestJS Monolith: Service Core]
+       │
+       ▼ (Payload Pipeline Request)
+[Google Cloud Vision API]
+       │
+       ▼ (Raw Text Block Analysis)
+[NestJS: Regex Line Item Parsing Engine]
+       │
+       ▼ (Return Structured JSON Object Array)
+[Flutter UI: Interactive Line-Allocation View]
+
+
 Phase 4: Hands-Free Polish (Feature 6)
 Goal: Voice-to-text expense logging.
 Frontend: Implement the speech_to_text package to capture natural language commands.
@@ -381,4 +407,3 @@ BEGIN
     END IF;
 END;
 $$;
-This prevents any accidental structural data leaks across your hackathon project, keeping your ledger secure and multi-tenant friendly!
