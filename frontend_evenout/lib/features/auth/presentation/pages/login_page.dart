@@ -1,12 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'components.dart'; // Import your shared components here
+import 'components.dart';
+import '../providers/auth_provider.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
+  ConsumerState<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends ConsumerState<LoginPage> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _login() {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+    ref.read(authNotifierProvider.notifier).signInWithEmail(email, password);
+  }
+
+  void _loginWithGoogle() {
+    ref.read(authNotifierProvider.notifier).signInWithGoogle();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<void>>(authNotifierProvider, (previous, next) {
+      next.whenOrNull(
+        error: (error, stackTrace) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.toString())),
+          );
+        },
+      );
+    });
+
+    final authState = ref.watch(authNotifierProvider);
+    final isLoading = authState.isLoading;
+
     return AuthBackground(
       child: SingleChildScrollView(
         child: Padding(
@@ -15,11 +61,10 @@ class LoginPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-            // Header: Logo and Hamburger Menu
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.local_fire_department_outlined, size: 36, color: Colors.black87), // Replace with your SVG Logo
+                const Icon(Icons.local_fire_department_outlined, size: 36, color: Colors.black87),
                 IconButton(
                   icon: const Icon(Icons.menu, size: 32, color: Color(0xFF1B1B3A)),
                   onPressed: () {},
@@ -27,8 +72,6 @@ class LoginPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 100),
-            
-            // Title
             const Center(
               child: Text(
                 'Login',
@@ -40,22 +83,18 @@ class LoginPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 40),
-
-            // Form Fields
-            const CustomInputField(
+            CustomInputField(
               hintText: 'Email',
               prefixIcon: Icons.email_outlined,
+              controller: _emailController,
             ),
-            const CustomInputField(
+            CustomInputField(
               hintText: 'Password',
               prefixIcon: Icons.lock_outline,
               isPassword: true,
-              hasSuffix: true,
+              controller: _passwordController,
             ),
-            
             const SizedBox(height: 10),
-
-            // Remember me & Forgot Password Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -67,8 +106,6 @@ class LoginPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 40),
-
-            // Login Button
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -79,20 +116,20 @@ class LoginPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                onPressed: () => context.go('/dashboard'),
-                child: const Text(
-                  'LOGIN',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+                onPressed: isLoading ? null : _login,
+                child: isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        'LOGIN',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 20),
-            
-            // OR Divider
             Row(
               children: [
                 Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
@@ -104,17 +141,12 @@ class LoginPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 20),
-
-            // Google Login Button
             SocialLoginButton(
               text: 'Sign in with Google',
               iconAsset: 'assets/google_logo.svg',
-              onPressed: () => context.go('/dashboard'),
+              onPressed: isLoading ? () {} : _loginWithGoogle,
             ),
-            
             const SizedBox(height: 30),
-
-            // Sign Up Redirect
             Center(
               child: GestureDetector(
                 onTap: () => context.go('/signup'),
