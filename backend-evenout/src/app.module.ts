@@ -11,6 +11,7 @@ import { ExpensesModule } from './expenses/expenses.module';
 import { SettlementsModule } from './settlements/settlements.module';
 import { BalancesModule } from './balances/balances.module';
 import { FriendshipsModule } from './friendships/friendships.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -34,6 +35,8 @@ import { FriendshipsModule } from './friendships/friendships.module';
     BalancesModule,
 
     FriendshipsModule,
+
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [

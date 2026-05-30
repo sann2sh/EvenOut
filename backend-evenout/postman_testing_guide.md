@@ -147,3 +147,14 @@ Your friend pays you back Rs. 500 via eSewa!
 
 Run Step 6 again (`GET {{baseUrl}}/balances/groups/<YOUR_GROUP_ID>/optimized`).
 **Expected Result:** The array will be empty `[]` because everyone is settled up! The `peer_balances` view dynamically calculated that the debt is gone!
+
+
+
+
+## 9. Add friends to groups
+
+Run Step 6 again (`GET {{baseUrl}}/balances/groups/<YOUR_GROUP_ID>/optimized`).
+**Expected Result:** The array will be empty `[]` because everyone is settled up! The `peer_balances` view dynamically calculated that the debt is gone!
+
+
+

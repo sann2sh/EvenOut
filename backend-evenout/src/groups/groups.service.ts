@@ -3,6 +3,7 @@ import {
   NotFoundException,
   InternalServerErrorException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { SupabaseService } from '../common/supabase/supabase.service';
 import { CreateGroupDto } from './dto/create-group.dto';
