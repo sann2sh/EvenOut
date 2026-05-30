@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/signup_page.dart';
+import '../../features/dashboard/presentation/pages/dashboard_shell.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -18,6 +19,11 @@ final goRouter = GoRouter(
       path: '/signup',
       name: 'signup',
       builder: (context, state) => const SignUpPage(),
+    ),
+    GoRoute(
+      path: '/dashboard',
+      name: 'dashboard',
+      builder: (context, state) => const DashboardShell(),
     ),
   ],
 );
