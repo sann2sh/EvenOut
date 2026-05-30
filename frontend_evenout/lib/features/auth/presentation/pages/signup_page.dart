@@ -134,7 +134,7 @@ class SignUpPage extends StatelessWidget {
                       TextSpan(
                         text: 'Login',
                         style: TextStyle(
-                          color: appGreen,
+                          color: appGreenDark,
                           fontWeight: FontWeight.bold,
                           decoration: TextDecoration.underline,
                         ),
