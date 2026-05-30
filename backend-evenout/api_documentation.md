@@ -259,3 +259,30 @@ Header: `Authorization: Bearer <your_jwt_access_token>`
     }
   ]
   ```
+
+
+Endpoint: PATCH https://evenout-ilq1.onrender.com/api/v1/users/me Headers: Authorization: Bearer <your_access_token>
+
+Example 1: Updating EVERYTHING
+```
+json
+{
+  "display_name": "Sann2sh",
+  "phone_number": "+9779800000000",
+  "avatar_url": "https://example.com/my-avatar.png"
+}
+Example 2: Updating ONLY the Phone Number (Partial Update)
+```json
+{
+  "phone_number": "+9779800000000"
+}
+
+```
+Notice how you completely leave out display_name and avatar_url? The backend is smart enough to ignore them and leave your existing name and avatar untouched in the database.
+
+Example 3: Updating ONLY the Avatar
+```json
+{
+  "avatar_url": "https://example.com/new-avatar.png"
+}
+```
