@@ -94,6 +94,24 @@ export class FriendshipsService {
     return data;
   }
 
+  async getSentFriendRequests(userId: string) {
+    const client = this.supabaseService.getAdmin();
+
+    const { data, error } = await client
+      .from('friendships')
+      .select(
+        'id, status, requested_at, addressee:users!addressee_id(id, display_name, avatar_url)',
+      )
+      .eq('requester_id', userId)
+      .eq('status', 'pending');
+
+    if (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+
+    return data;
+  }
+
   async updateFriendship(id: string, userId: string, updateDto: UpdateFriendshipDto) {
     const client = this.supabaseService.getAdmin();
 

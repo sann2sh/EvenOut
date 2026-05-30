@@ -23,6 +23,11 @@ export class FriendshipsController {
     return this.friendshipsService.getFriendRequests(user.id);
   }
 
+  @Get('requests/sent')
+  getSentFriendRequests(@CurrentUser() user: any) {
+    return this.friendshipsService.getSentFriendRequests(user.id);
+  }
+
   @Patch('requests/:id')
   updateFriendship(
     @CurrentUser() user: any,
