@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import 'package:frontend_evenout/features/expenses/presentation/pages/add_expense_screen.dart';
+import '../../../groups/presentation/pages/groups_screen.dart';
 import '../../../account/presentation/pages/account_screen.dart';
 import 'home_screen.dart';
 
@@ -21,7 +23,7 @@ class _DashboardShellState extends State<DashboardShell> {
     super.initState();
     _screens = [
       const HomeScreen(),
-      const _PlaceholderScreen(title: 'Groups Listing', icon: Icons.group_outlined),
+      const GroupsScreen(),
       const _PlaceholderScreen(title: 'Expenses History', icon: Icons.receipt_long_outlined),
       const AccountScreen(),
     ];
@@ -194,10 +196,10 @@ class _DashboardShellState extends State<DashboardShell> {
                 subtitle: 'Enter transaction splits and details manually',
                 onTap: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Manual expense entry editor coming soon!'),
-                      behavior: SnackBarBehavior.floating,
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddExpenseScreen(),
                     ),
                   );
                 },
