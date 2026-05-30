@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 // --- CONSTANTS ---
 const Color appGreen = Color(0xFF429246); // Match with your Figma hex
+const Color appGreenDark = Color(0xFF1E5C22); // Premium high-contrast dark forest green
 const Color appLightGreen = Color(0xFFD4E6D5);
 
 // --- REUSABLE TEXT FIELD ---
@@ -36,11 +37,11 @@ class _CustomInputFieldState extends State<CustomInputField> {
       child: TextFormField(
         controller: widget.controller,
         obscureText: widget.isPassword ? _obscureText : false,
-        style: const TextStyle(color: Colors.black87, fontSize: 15),
+        style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 16), // Dark readable typing text
         decoration: InputDecoration(
           hintText: widget.hintText,
-          hintStyle: const TextStyle(color: appGreen, fontSize: 14),
-          prefixIcon: Icon(widget.prefixIcon, color: appGreen, size: 20),
+          hintStyle: const TextStyle(color: Color(0xFF6B7280), fontSize: 14), // Slate-gray hint
+          prefixIcon: Icon(widget.prefixIcon, color: const Color(0xFF4B5563), size: 20), // Charcoal prefix icon
           suffixIcon: showToggle
               ? GestureDetector(
                   onTap: () => setState(() => _obscureText = !_obscureText),
@@ -188,8 +189,12 @@ class _RememberMeCheckboxState extends State<RememberMeCheckbox> {
             width: 16,
             height: 16,
             decoration: BoxDecoration(
-              color: isChecked ? appGreen : appLightGreen,
+              color: isChecked ? appGreen : Colors.white,
               borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: isChecked ? appGreen : const Color(0xFF9CA3AF),
+                width: 1.5,
+              ),
             ),
             child: isChecked 
               ? const Icon(Icons.check, size: 12, color: Colors.white)

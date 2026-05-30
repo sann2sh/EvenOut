@@ -158,7 +158,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       TextSpan(
                         text: 'Sign Up',
                         style: TextStyle(
-                          color: appGreen,
+                          color: appGreenDark,
                           fontWeight: FontWeight.bold,
                           decoration: TextDecoration.underline,
                         ),
