@@ -1,6 +1,7 @@
 import { Controller, Get, Patch, Body, Param } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('users')
@@ -18,6 +19,14 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
   ) {
     return this.usersService.updateProfile(user.id, updateUserDto);
+  }
+
+  @Patch('fcm-token')
+  async updateFcmToken(
+    @CurrentUser() user: any,
+    @Body() updateFcmTokenDto: UpdateFcmTokenDto,
+  ) {
+    return this.usersService.updateProfile(user.id, updateFcmTokenDto);
   }
 
   @Get(':id/profile')
