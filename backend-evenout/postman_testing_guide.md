@@ -157,4 +157,41 @@ Run Step 6 again (`GET {{baseUrl}}/balances/groups/<YOUR_GROUP_ID>/optimized`).
 **Expected Result:** The array will be empty `[]` because everyone is settled up! The `peer_balances` view dynamically calculated that the debt is gone!
 
 
+1. Sign Up (Register)
+POST {{baseUrl}}/auth/signup Body (JSON):
+
+```json
+{
+  "email": "hello@example.com",
+  "password": "supersecretpassword",
+  "display_name": "John Doe"
+}
+
+```
+Note: This automatically triggers your database trigger to insert the user into the public.users table!
+
+2. Log In
+POST {{baseUrl}}/auth/login Body (JSON):
+
+
+```json
+{
+  "email": "hello@example.com",
+  "password": "supersecretpassword"
+}
+```
+
+Returns:
+
+```json
+{
+  "message": "Login successful",
+  "access_token": "eyJhbGciOiJIUzI1Ni...",
+  "refresh_token": "v09pI...",
+  "user": { ... }
+}
+```
+You can take the access_token returned by the login endpoint and use it in Postman for all your other requests!
+
+
 
