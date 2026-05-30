@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { SupabaseService } from '../common/supabase/supabase.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
 
 @Injectable()
 export class UsersService {
@@ -24,11 +25,11 @@ export class UsersService {
     return data;
   }
 
-  async updateProfile(userId: string, updateUserDto: UpdateUserDto) {
+  async updateProfile(userId: string, updateData: UpdateUserDto | UpdateFcmTokenDto) {
     const client = this.supabaseService.getAdmin();
     const { data, error } = await client
       .from('users')
-      .update(updateUserDto)
+      .update(updateData)
       .eq('id', userId)
       .select()
       .single();
