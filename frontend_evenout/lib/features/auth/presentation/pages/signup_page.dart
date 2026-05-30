@@ -87,7 +87,7 @@ class SignUpPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                onPressed: () {},
+                onPressed: () => context.go('/dashboard'),
                 child: const Text(
                   'SIGN UP',
                   style: TextStyle(
@@ -117,7 +117,7 @@ class SignUpPage extends StatelessWidget {
             SocialLoginButton(
               text: 'Sign up with Google',
               iconAsset: 'assets/google_logo.svg',
-              onPressed: () {},
+              onPressed: () => context.go('/dashboard'),
             ),
             
             const SizedBox(height: 30),
