@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, Param } from '@nestjs/common';
+import { Controller, Get, Patch, Body, Param, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
@@ -27,6 +27,14 @@ export class UsersController {
     @Body() updateFcmTokenDto: UpdateFcmTokenDto,
   ) {
     return this.usersService.updateProfile(user.id, updateFcmTokenDto);
+  }
+
+  @Get('search')
+  async searchUsers(
+    @CurrentUser() user: any,
+    @Query('query') query: string,
+  ) {
+    return this.usersService.searchUsers(query, user.id);
   }
 
   @Get(':id/profile')
