@@ -1,6 +1,6 @@
 # EvenOut Backend API Documentation
 
-Base URL for all endpoints: `http://localhost:3000/api/v1` (for local development)
+Base URL for all endpoints: `http://evenout-ilq1.onrender.com/api/v1` (for local development)
 
 **Authentication:** 
 Almost all endpoints require a Bearer token in the Authorization header. 
