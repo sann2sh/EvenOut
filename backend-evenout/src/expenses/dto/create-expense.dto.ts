@@ -38,6 +38,21 @@ export class ExpenseSplitDto {
   elimination_order?: number; // Used for chaos roulette
 }
 
+export class ParsedReceiptItemDto {
+  @IsString()
+  name: string;
+
+  @IsNumber()
+  quantity: number;
+
+  @IsNumber()
+  unit_price: number;
+
+  @IsOptional()
+  @IsNumber()
+  line_total?: number;
+}
+
 export class CreateExpenseDto {
   @IsOptional()
   @IsUUID()
@@ -50,8 +65,6 @@ export class CreateExpenseDto {
   @IsNumber()
   @Min(0.01)
   amount: number;
-
-
 
   @IsString()
   description: string;
@@ -71,4 +84,21 @@ export class CreateExpenseDto {
   @ValidateNested({ each: true })
   @Type(() => ExpenseSplitDto)
   splits: ExpenseSplitDto[];
+
+  @IsOptional()
+  @IsString()
+  receipt_url?: string;
+
+  @IsOptional()
+  @IsString()
+  storage_path?: string;
+
+  @IsOptional()
+  raw_ocr_text?: any;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ParsedReceiptItemDto)
+  parsed_items?: ParsedReceiptItemDto[];
 }
