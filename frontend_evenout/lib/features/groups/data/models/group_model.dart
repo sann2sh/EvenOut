@@ -23,7 +23,7 @@ class GroupExpense {
 class GroupMember {
   final String name;
   final String avatarUrl;
-  final double balance; // positive = owed money, negative = owes money
+  double balance; // positive = owed money, negative = owes money
 
   GroupMember({
     required this.name,

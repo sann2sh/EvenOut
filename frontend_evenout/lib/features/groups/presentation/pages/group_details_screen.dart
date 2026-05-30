@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../data/models/group_model.dart';
+import 'package:frontend_evenout/features/expenses/presentation/pages/add_expense_screen.dart';
+import 'esewa_payment_screen.dart';
 
 class GroupDetailsScreen extends StatefulWidget {
   final EvenOutGroup group;
@@ -17,7 +19,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> with SingleTick
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -205,6 +207,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> with SingleTick
               tabs: const [
                 Tab(text: 'Expenses'),
                 Tab(text: 'Members'),
+                Tab(text: 'Insights'),
               ],
             ),
           ),
@@ -313,21 +316,25 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> with SingleTick
                           ),
                         ],
                       ),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: brandGreen.withOpacity(0.1),
-                          child: Icon(Icons.person_add_alt_1_rounded, color: brandGreen),
-                        ),
-                        title: Text(
-                          'Add member from friends...',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: brandGreen,
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(16),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: brandGreen.withOpacity(0.1),
+                            child: Icon(Icons.person_add_alt_1_rounded, color: brandGreen),
                           ),
+                          title: Text(
+                            'Add member from friends...',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: brandGreen,
+                            ),
+                          ),
+                          trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: brandGreen),
+                          onTap: () => _showAddMemberFriendsDrawer(context, brandGreen, textColor, subtextColor, cardColor),
                         ),
-                        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: brandGreen),
-                        onTap: () => _showAddMemberFriendsDrawer(context, brandGreen, textColor, subtextColor, cardColor),
                       ),
                     ),
                     
@@ -427,10 +434,42 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> with SingleTick
                     }),
                   ],
                 ),
+                
+                // TAB 3: Group Insights Dashboard
+                _buildGroupInsightsTab(isDark, cardColor, textColor, subtextColor, brandGreen),
               ],
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: Container(
+        color: isDark ? const Color(0xFF1E1E2E) : const Color(0xFFEDF0F5),
+        padding: const EdgeInsets.fromLTRB(20.0, 8.0, 20.0, 20.0),
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: brandGreen,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            elevation: 1.5,
+          ),
+          onPressed: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddExpenseScreen(initialGroupName: widget.group.name),
+              ),
+            );
+            setState(() {}); // Refresh instantly to display newly added expense!
+          },
+          icon: const Icon(Icons.add_rounded, color: Colors.white),
+          label: const Text(
+            'Add Group Expense',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13, letterSpacing: 0.5),
+          ),
+        ),
       ),
     );
   }
@@ -654,34 +693,54 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> with SingleTick
                       : SizedBox(
                           width: double.infinity,
                           height: 54,
-                          child: ElevatedButton(
+                          child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: brandGreen,
+                              backgroundColor: const Color(0xFF60BB46), // eSewa signature brand green
+                              foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                             onPressed: () {
-                              setDrawerState(() {
-                                _isSettleOpen = true;
-                              });
+                              Navigator.pop(context); // Close sheet
                               
-                              // Trigger animated mock balance settlement transfer
-                              Future.delayed(const Duration(milliseconds: 1800), () {
-                                if (context.mounted) {
-                                  Navigator.pop(context);
-                                  
-                                  // Reset state
-                                  setState(() {
-                                    _isSettleOpen = false;
-                                  });
-                                  
-                                  // Show elegant payment success dialog
-                                  _showPaymentSuccess(context, name, amount, brandGreen, textColor, subtextColor, cardColor);
-                                }
-                              });
+                              // Launch secure eSewa mock portal check
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => EsewaPaymentScreen(
+                                    payeeName: name,
+                                    amount: amount,
+                                    onPaymentSuccess: () {
+                                      setState(() {
+                                        try {
+                                          final target = widget.group.members.firstWhere((m) => m.name == name);
+                                          target.balance = 0.0;
+                                        } catch (_) {}
+                                      });
+
+                                      // Show confirmation SnackBar
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Row(
+                                            children: [
+                                              const Icon(Icons.check_circle_rounded, color: Colors.white),
+                                              const SizedBox(width: 10),
+                                              Text('Settled $name balance successfully via eSewa!'),
+                                            ],
+                                          ),
+                                          backgroundColor: const Color(0xFF2E7D32),
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              );
                             },
-                            child: const Text(
-                              'CONFIRM & TRANSFER BALANCE',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.8),
+                            icon: const Icon(Icons.payment_rounded, color: Colors.white),
+                            label: const Text(
+                              'PAY VIA ESEWA PORTAL (TEST)',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8),
                             ),
                           ),
                         ),
@@ -695,96 +754,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> with SingleTick
     );
   }
 
-  // 3. Payment Success Dialog Receipt
-  void _showPaymentSuccess(
-    BuildContext context, 
-    String name, 
-    double amount, 
-    Color brandGreen, 
-    Color textColor, 
-    Color subtextColor,
-    Color cardColor,
-  ) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          backgroundColor: cardColor,
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Success Check Ring
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE8F5E9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32), size: 48),
-                ),
-                const SizedBox(height: 20),
-                
-                Text(
-                  'Settlement Complete!',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Your outstanding balance has been credited.',
-                  style: TextStyle(fontSize: 12, color: subtextColor),
-                  textAlign: TextAlign.center,
-                ),
-                
-                const SizedBox(height: 20),
-                const Divider(thickness: 0.8),
-                const SizedBox(height: 15),
-                
-                // Details Grid
-                _buildReceiptRow('Transfer to', name, textColor, subtextColor),
-                const SizedBox(height: 10),
-                _buildReceiptRow('Source Wallet', 'eSewa Pay Account', textColor, subtextColor),
-                const SizedBox(height: 10),
-                _buildReceiptRow('Amount Paid', '\$${amount.toStringAsFixed(2)}', textColor, subtextColor),
-                const SizedBox(height: 10),
-                _buildReceiptRow('Status', 'Success', const Color(0xFF2E7D32), subtextColor),
-                
-                const SizedBox(height: 25),
-                
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: brandGreen),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: Text('Done', style: TextStyle(color: brandGreen, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
-  Widget _buildReceiptRow(String title, String val, Color valColor, Color labelColor) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(title, style: TextStyle(fontSize: 12, color: labelColor, fontWeight: FontWeight.w500)),
-        Text(val, style: TextStyle(fontSize: 12, color: valColor, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
 
   Widget _buildHeroAvatar(String type, Color bgColor) {
     if (type == 'diamond') {
@@ -941,45 +911,47 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> with SingleTick
                           final initial = friend['initial']!;
                           final colorHex = int.parse(friend['color']!);
                           final isSelected = selectedFriends.contains(name);
-
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: CircleAvatar(
-                              radius: 16,
-                              backgroundColor: Color(colorHex),
-                              child: Text(
-                                initial,
-                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            title: Text(
-                              name,
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor),
-                            ),
-                            trailing: Container(
-                              width: 20,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                color: isSelected ? brandGreen : Colors.transparent,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: isSelected ? brandGreen : Colors.grey.shade400,
-                                  width: 1.5,
+                          return Material(
+                            color: Colors.transparent,
+                            child: ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: CircleAvatar(
+                                radius: 16,
+                                backgroundColor: Color(colorHex),
+                                child: Text(
+                                  initial,
+                                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                                 ),
                               ),
-                              child: isSelected
-                                  ? const Icon(Icons.check, size: 12, color: Colors.white)
-                                  : null,
+                              title: Text(
+                                name,
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor),
+                              ),
+                              trailing: Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: isSelected ? brandGreen : Colors.transparent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isSelected ? brandGreen : Colors.grey.shade400,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: isSelected
+                                    ? const Icon(Icons.check, size: 12, color: Colors.white)
+                                    : null,
+                              ),
+                              onTap: () {
+                                setDrawerState(() {
+                                  if (isSelected) {
+                                    selectedFriends.remove(name);
+                                  } else {
+                                    selectedFriends.add(name);
+                                  }
+                                });
+                              },
                             ),
-                            onTap: () {
-                              setDrawerState(() {
-                                if (isSelected) {
-                                  selectedFriends.remove(name);
-                                } else {
-                                  selectedFriends.add(name);
-                                }
-                              });
-                            },
                           );
                         },
                       ),
@@ -1039,6 +1011,471 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> with SingleTick
       },
     );
   }
+
+  Widget _buildGroupInsightsTab(bool isDark, Color cardColor, Color textColor, Color subtextColor, Color brandGreen) {
+    final double totalGroupSpend = widget.group.totalExpenses;
+    final double userBalance = widget.group.userBalance;
+
+    // Determine top spender inside group
+    String topSpenderName = 'You';
+    double topSpenderAmt = 0.0;
+    if (widget.group.expenses.isNotEmpty) {
+      final Map<String, double> spenderMap = {};
+      for (final exp in widget.group.expenses) {
+        spenderMap[exp.paidBy] = (spenderMap[exp.paidBy] ?? 0.0) + exp.amount;
+      }
+      var maxAmt = -1.0;
+      spenderMap.forEach((name, amt) {
+        if (amt > maxAmt) {
+          maxAmt = amt;
+          topSpenderName = name;
+          topSpenderAmt = amt;
+        }
+      });
+    }
+
+    // Determine category distribution dynamically
+    final Map<String, double> catSums = {};
+    for (final exp in widget.group.expenses) {
+      final title = exp.title.toLowerCase();
+      var cat = 'Others';
+      if (title.contains('coffee') || title.contains('food') || title.contains('cafe') || title.contains('restaurant') || title.contains('momo') || title.contains('tea')) {
+        cat = 'Food';
+      } else if (title.contains('taxi') || title.contains('cab') || title.contains('ride') || title.contains('travel') || title.contains('fuel') || title.contains('gas')) {
+        cat = 'Travel';
+      } else if (title.contains('shopping') || title.contains('gift') || title.contains('clothes') || title.contains('mall')) {
+        cat = 'Shopping';
+      } else if (title.contains('movie') || title.contains('party') || title.contains('game') || title.contains('entertainment')) {
+        cat = 'Entertainment';
+      }
+      catSums[cat] = (catSums[cat] ?? 0.0) + exp.amount;
+    }
+    // Default categories if empty
+    if (catSums.isEmpty) {
+      catSums['Food'] = 450.0;
+      catSums['Travel'] = 120.0;
+      catSums['Shopping'] = 300.0;
+      catSums['Others'] = 150.0;
+    }
+    final double totalCatSum = catSums.values.fold(0.0, (sum, val) => sum + val);
+
+    // Build trend graph data
+    final List<double> graphValues = [];
+    final List<String> graphLabels = [];
+    if (widget.group.expenses.isNotEmpty) {
+      final takeAmt = widget.group.expenses.take(5).toList();
+      for (int i = takeAmt.length - 1; i >= 0; i--) {
+        graphValues.add(takeAmt[i].amount);
+        final label = takeAmt[i].title;
+        graphLabels.add(label.length > 5 ? '${label.substring(0, 5)}..' : label);
+      }
+    }
+    if (graphValues.length < 3) {
+      graphValues.clear();
+      graphLabels.clear();
+      graphValues.addAll([120.0, 310.0, 180.0, 420.0, totalGroupSpend > 0 ? totalGroupSpend : 350.0]);
+      graphLabels.addAll(['Jan', 'Feb', 'Mar', 'Apr', 'May']);
+    }
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'YOUR SHARE BALANCE',
+                      style: TextStyle(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      userBalance > 0 
+                          ? '+\$${userBalance.toStringAsFixed(2)}'
+                          : userBalance < 0
+                              ? '-\$${userBalance.abs().toStringAsFixed(2)}'
+                              : '\$0.00',
+                      style: TextStyle(
+                        fontSize: 15, 
+                        fontWeight: FontWeight.bold, 
+                        color: userBalance > 0 
+                            ? const Color(0xFF2E7D32) 
+                            : userBalance < 0
+                                ? const Color(0xFFC62828)
+                                : textColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'TOP SPENDER',
+                      style: TextStyle(fontSize: 9, color: Colors.grey, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '$topSpenderName (\$${topSpenderAmt.toStringAsFixed(0)})',
+                      style: TextStyle(
+                        fontSize: 14, 
+                        fontWeight: FontWeight.bold, 
+                        color: brandGreen,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Group Spending Curve',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Recent transaction timeline insights',
+                style: TextStyle(fontSize: 11, color: subtextColor),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                height: 110,
+                width: double.infinity,
+                child: CustomPaint(
+                  painter: GroupTrendLinePainter(
+                    data: graphValues,
+                    labels: graphLabels,
+                    lineColor: brandGreen,
+                    gridColor: isDark ? Colors.white10 : Colors.grey.shade200,
+                    textColor: subtextColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Category Breakdown',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor),
+              ),
+              const SizedBox(height: 12),
+              ...catSums.entries.map((e) {
+                final catName = e.key;
+                final amt = e.value;
+                final ratio = totalCatSum > 0 ? amt / totalCatSum : 0.0;
+                final percentage = (ratio * 100).toStringAsFixed(0);
+                
+                IconData catIcon = Icons.folder_open_rounded;
+                Color catColor = brandGreen;
+                if (catName == 'Food') {
+                  catIcon = Icons.local_cafe_rounded;
+                  catColor = Colors.orange;
+                } else if (catName == 'Travel') {
+                  catIcon = Icons.directions_car_rounded;
+                  catColor = Colors.blue;
+                } else if (catName == 'Shopping') {
+                  catIcon = Icons.shopping_bag_rounded;
+                  catColor = Colors.purple;
+                } else if (catName == 'Entertainment') {
+                  catIcon = Icons.videogame_asset_rounded;
+                  catColor = Colors.red;
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 14,
+                        backgroundColor: catColor.withOpacity(0.1),
+                        child: Icon(catIcon, color: catColor, size: 14),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  catName,
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor),
+                                ),
+                                Text(
+                                  '\$${amt.toStringAsFixed(0)} ($percentage%)',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: subtextColor),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: ratio,
+                                minHeight: 5,
+                                backgroundColor: isDark ? Colors.white10 : Colors.grey.shade200,
+                                valueColor: AlwaysStoppedAnimation<Color>(catColor),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.psychology_outlined, color: Colors.blueAccent, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Smart Splitting Insights',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildSmartRow(
+                Icons.check_circle_outline_rounded,
+                'Smart ledger analysis matches direct eSewa deep links.',
+                textColor,
+              ),
+              if (widget.group.expenses.isNotEmpty) ...[
+                _buildSmartRow(
+                  Icons.trending_up_rounded,
+                  '$topSpenderName spent the most, covering ${widget.group.expenses.where((x) => x.paidBy == topSpenderName).length} expenses.',
+                  textColor,
+                ),
+              ],
+              _buildSmartRow(
+                Icons.info_outline_rounded,
+                userBalance > 0 
+                    ? 'You are owed money. Complete pending settlements to cash out!'
+                    : userBalance < 0
+                        ? 'You owe money in this group. Use esewa settle up now!'
+                        : 'Awesome! Your group balance is fully settled.',
+                textColor,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 35),
+      ],
+    );
+  }
+
+  Widget _buildSmartRow(IconData icon, String text, Color textC) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.blueAccent, size: 14),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 11, color: textC.withOpacity(0.8), height: 1.3),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class GroupTrendLinePainter extends CustomPainter {
+  final List<double> data;
+  final List<String> labels;
+  final Color lineColor;
+  final Color gridColor;
+  final Color textColor;
+
+  GroupTrendLinePainter({
+    required this.data,
+    required this.labels,
+    required this.lineColor,
+    required this.gridColor,
+    required this.textColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (data.isEmpty) return;
+
+    final double paddingLeft = 32.0;
+    final double paddingRight = 10.0;
+    final double paddingTop = 15.0;
+    final double paddingBottom = 15.0;
+
+    final double chartWidth = size.width - paddingLeft - paddingRight;
+    final double chartHeight = size.height - paddingTop - paddingBottom;
+
+    final double maxVal = data.reduce((a, b) => a > b ? a : b);
+    final double minVal = 0.0;
+    final double valRange = maxVal > 0 ? maxVal - minVal : 1.0;
+
+    final Paint gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 0.8
+      ..style = PaintingStyle.stroke;
+
+    final Paint linePaint = Paint()
+      ..color = lineColor
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final Paint fillPaint = Paint()
+      ..color = lineColor.withOpacity(0.08)
+      ..style = PaintingStyle.fill;
+
+    final int linesCount = 2;
+    for (int i = 0; i <= linesCount; i++) {
+      final double ratio = i / linesCount;
+      final double y = paddingTop + chartHeight * (1 - ratio);
+      canvas.drawLine(Offset(paddingLeft, y), Offset(size.width - paddingRight, y), gridPaint);
+
+      final priceVal = minVal + valRange * ratio;
+      final textSpan = TextSpan(
+        style: TextStyle(color: textColor, fontSize: 8, fontWeight: FontWeight.bold),
+        text: '\$${priceVal.toInt()}',
+      );
+      final textPainter = TextPainter(text: textSpan, textDirection: TextDirection.ltr);
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(paddingLeft - textPainter.width - 4, y - textPainter.height / 2));
+    }
+
+    final double stepX = chartWidth / (data.length - 1);
+    final List<Offset> points = [];
+    for (int i = 0; i < data.length; i++) {
+      final double x = paddingLeft + i * stepX;
+      final double ratio = (data[i] - minVal) / valRange;
+      final double y = paddingTop + chartHeight * (1 - ratio);
+      points.add(Offset(x, y));
+    }
+
+    final Path path = Path();
+    path.moveTo(points[0].dx, points[0].dy);
+    for (int i = 1; i < points.length; i++) {
+      path.lineTo(points[i].dx, points[i].dy);
+    }
+    canvas.drawPath(path, linePaint);
+
+    final Path fillPath = Path.from(path);
+    fillPath.lineTo(points.last.dx, paddingTop + chartHeight);
+    fillPath.lineTo(points.first.dx, paddingTop + chartHeight);
+    fillPath.close();
+    canvas.drawPath(fillPath, fillPaint);
+
+    final Paint dotPaint = Paint()
+      ..color = lineColor
+      ..style = PaintingStyle.fill;
+    final Paint whiteDotPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    for (final pt in points) {
+      canvas.drawCircle(pt, 4.0, dotPaint);
+      canvas.drawCircle(pt, 2.0, whiteDotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant GroupTrendLinePainter oldDelegate) => true;
 }
 
 // Custom Painter to draw a high-contrast premium QR code graphic mockup
