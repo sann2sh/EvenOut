@@ -7,33 +7,50 @@ const Color appGreenDark = Color(0xFF1E5C22); // Premium high-contrast dark fore
 const Color appLightGreen = Color(0xFFD4E6D5);
 
 // --- REUSABLE TEXT FIELD ---
-class CustomInputField extends StatelessWidget {
+class CustomInputField extends StatefulWidget {
   final String hintText;
   final IconData prefixIcon;
   final bool isPassword;
-  final bool hasSuffix;
+  final TextEditingController? controller;
 
   const CustomInputField({
     super.key,
     required this.hintText,
     required this.prefixIcon,
     this.isPassword = false,
-    this.hasSuffix = false,
+    this.controller,
   });
 
   @override
+  State<CustomInputField> createState() => _CustomInputFieldState();
+}
+
+class _CustomInputFieldState extends State<CustomInputField> {
+  bool _obscureText = true;
+
+  @override
   Widget build(BuildContext context) {
+    final bool showToggle = widget.isPassword;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0),
       child: TextFormField(
-        obscureText: isPassword,
+        controller: widget.controller,
+        obscureText: widget.isPassword ? _obscureText : false,
         style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 16), // Dark readable typing text
         decoration: InputDecoration(
-          hintText: hintText,
+          hintText: widget.hintText,
           hintStyle: const TextStyle(color: Color(0xFF6B7280), fontSize: 14), // Slate-gray hint
-          prefixIcon: Icon(prefixIcon, color: Color(0xFF4B5563), size: 20), // Charcoal prefix icon
-          suffixIcon: hasSuffix
-              ? const Icon(Icons.visibility_off, color: Colors.black54, size: 20)
+          prefixIcon: Icon(widget.prefixIcon, color: const Color(0xFF4B5563), size: 20), // Charcoal prefix icon
+          suffixIcon: showToggle
+              ? GestureDetector(
+                  onTap: () => setState(() => _obscureText = !_obscureText),
+                  child: Icon(
+                    _obscureText ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.black54,
+                    size: 20,
+                  ),
+                )
               : null,
           enabledBorder: const UnderlineInputBorder(
             borderSide: BorderSide(color: appLightGreen, width: 1.5),

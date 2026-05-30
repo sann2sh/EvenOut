@@ -1,20 +1,67 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'components.dart'; // Import your shared components here
+import 'components.dart';
+import '../providers/auth_provider.dart';
 
-class SignUpPage extends StatelessWidget {
+class SignUpPage extends ConsumerStatefulWidget {
   const SignUpPage({super.key});
 
   @override
+  ConsumerState<SignUpPage> createState() => _SignUpPageState();
+}
+
+class _SignUpPageState extends ConsumerState<SignUpPage> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _signUp() {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+
+    ref.read(authNotifierProvider.notifier).signUpWithEmail(email, password, '');
+  }
+
+  void _signUpWithGoogle() {
+    ref.read(authNotifierProvider.notifier).signInWithGoogle();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<void>>(authNotifierProvider, (previous, next) {
+      next.whenOrNull(
+        error: (error, stackTrace) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.toString())),
+          );
+        },
+      );
+    });
+
+    final authState = ref.watch(authNotifierProvider);
+    final isLoading = authState.isLoading;
+
     return AuthBackground(
-      child: SingleChildScrollView( // Added scroll view to prevent overflow with more fields
+      child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 30.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-            // Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -25,9 +72,7 @@ class SignUpPage extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 80), // Slightly reduced spacing for extra fields
-            
-            // Title
+            const SizedBox(height: 80),
             const Center(
               child: Text(
                 'Create an account',
@@ -39,44 +84,25 @@ class SignUpPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 30),
-
-            // Form Fields
-            const CustomInputField(
-              hintText: 'Name',
-              prefixIcon: Icons.person_outline,
-            ),
-            const CustomInputField(
+            CustomInputField(
               hintText: 'Email',
               prefixIcon: Icons.email_outlined,
+              controller: _emailController,
             ),
-            const CustomInputField(
+            CustomInputField(
               hintText: 'Password',
               prefixIcon: Icons.lock_outline,
               isPassword: true,
+              controller: _passwordController,
             ),
-            const CustomInputField(
-              hintText: 'Confirm Password',
-              prefixIcon: Icons.lock_outline,
-              isPassword: true,
-              hasSuffix: true,
-            ),
-            
             const SizedBox(height: 10),
-
-            // Remember me & Forgot Password Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                const RememberMeCheckbox(),
-                const Text(
-                  'Forgot password?',
-                  style: TextStyle(fontSize: 12, color: Colors.black87),
-                ),
+                RememberMeCheckbox(),
               ],
             ),
             const SizedBox(height: 30),
-
-            // Sign Up Button
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -87,20 +113,20 @@ class SignUpPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                onPressed: () => context.go('/dashboard'),
-                child: const Text(
-                  'SIGN UP',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+                onPressed: isLoading ? null : _signUp,
+                child: isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        'SIGN UP',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 20),
-            
-            // OR Divider
             Row(
               children: [
                 Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
@@ -112,17 +138,12 @@ class SignUpPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 20),
-
-            // Google Sign Up Button
             SocialLoginButton(
               text: 'Sign up with Google',
               iconAsset: 'assets/google_logo.svg',
-              onPressed: () => context.go('/dashboard'),
+              onPressed: isLoading ? () {} : _signUpWithGoogle,
             ),
-            
             const SizedBox(height: 30),
-
-            // Login Redirect
             Center(
               child: GestureDetector(
                 onTap: () => context.go('/login'),
@@ -144,7 +165,7 @@ class SignUpPage extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 20), // Bottom padding
+            const SizedBox(height: 20),
           ],
         ),
       ),
