@@ -56,7 +56,7 @@ export class FriendshipsService {
     const { data, error } = await client
       .from('friendships')
       .select(
-        'id, status, created_at, requester:users!requester_id(id, display_name, avatar_url), addressee:users!addressee_id(id, display_name, avatar_url)',
+        'id, status, requested_at, requester:users!requester_id(id, display_name, avatar_url), addressee:users!addressee_id(id, display_name, avatar_url)',
       )
       .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
       .eq('status', 'accepted');
@@ -70,7 +70,7 @@ export class FriendshipsService {
       const friend = f.requester.id === userId ? f.addressee : f.requester;
       return {
         friendshipId: f.id,
-        createdAt: f.created_at,
+        createdAt: f.requested_at,
         ...friend,
       };
     });
@@ -82,7 +82,7 @@ export class FriendshipsService {
     const { data, error } = await client
       .from('friendships')
       .select(
-        'id, status, created_at, requester:users!requester_id(id, display_name, avatar_url)',
+        'id, status, requested_at, requester:users!requester_id(id, display_name, avatar_url)',
       )
       .eq('addressee_id', userId)
       .eq('status', 'pending');
