@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1006392759696",
+    "project_id": "evenout-fae6e",
+    "storage_bucket": "evenout-fae6e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1006392759696:android:002165fc7ff8a574a4cf15",
+        "android_client_info": {
+          "package_name": "com.example.frontend_evenout"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBjftuJc0jFkDAaa8e5d-zn3Nz_ABaAZy0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

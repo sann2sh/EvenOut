@@ -12,6 +12,10 @@ import { SettlementsModule } from './settlements/settlements.module';
 import { BalancesModule } from './balances/balances.module';
 import { FriendshipsModule } from './friendships/friendships.module';
 import { AuthModule } from './auth/auth.module';
+import { FirebaseModule } from './firebase/firebase.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { NudgesModule } from './nudges/nudges.module';
+import { SchedulerModule } from './scheduler/scheduler.module';
 
 @Module({
   imports: [
@@ -37,6 +41,14 @@ import { AuthModule } from './auth/auth.module';
     FriendshipsModule,
 
     AuthModule,
+
+    FirebaseModule,
+
+    ScheduleModule.forRoot(),
+
+    NudgesModule,
+
+    SchedulerModule,
   ],
   controllers: [AppController],
   providers: [
