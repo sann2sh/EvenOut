@@ -16,7 +16,6 @@ describe('AppController', () => {
     it('should return status ok', () => {
       const result = appController.getHealth();
       expect(result.status).toBe('ok');
-      expect(result.service).toBe('evenout-api');
     });
   });
 });

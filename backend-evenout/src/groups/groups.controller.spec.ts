@@ -19,6 +19,7 @@ describe('GroupsController', () => {
             updateGroup: jest.fn(),
             getGroupMembers: jest.fn(),
             removeMember: jest.fn(),
+            addMember: jest.fn(),
           },
         },
       ],

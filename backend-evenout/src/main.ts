@@ -8,7 +8,9 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
   // Global API prefix
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['/'],
+  });
 
   // CORS
   app.enableCors({

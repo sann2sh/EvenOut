@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   email         TEXT UNIQUE,
   display_name  TEXT,
   avatar_url    TEXT,
-  split_score   INTEGER NOT NULL DEFAULT 500,
+  split_score   INTEGER NOT NULL DEFAULT 0,
   timely_settlements  INTEGER NOT NULL DEFAULT 0,
   overdue_days_total  INTEGER NOT NULL DEFAULT 0,
   fcm_token     TEXT,

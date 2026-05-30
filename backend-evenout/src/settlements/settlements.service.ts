@@ -15,17 +15,19 @@ export class SettlementsService {
   async createSettlement(userId: string, createDto: CreateSettlementDto) {
     const client = this.supabaseService.getAdmin();
 
-    // Verify user is active member of the group
-    const { data: member, error: memberError } = await client
-      .from('group_members')
-      .select('id')
-      .eq('group_id', createDto.group_id)
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .single();
+    if (createDto.group_id) {
+      // Verify user is active member of the group
+      const { data: member, error: memberError } = await client
+        .from('group_members')
+        .select('id')
+        .eq('group_id', createDto.group_id)
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .single();
 
-    if (memberError || !member) {
-      throw new BadRequestException('You are not an active member of this group');
+      if (memberError || !member) {
+        throw new BadRequestException('You are not an active member of this group');
+      }
     }
 
     if (userId !== createDto.payer_id && userId !== createDto.payee_id) {
@@ -65,28 +67,43 @@ export class SettlementsService {
   async getGroupSettlements(groupId: string, userId: string) {
     const client = this.supabaseService.getAdmin();
 
-    const { data: member, error: memberError } = await client
-      .from('group_members')
-      .select('id')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
+    if (groupId) {
+      const { data: member, error: memberError } = await client
+        .from('group_members')
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('user_id', userId)
+        .single();
 
-    if (memberError || !member) {
-      throw new BadRequestException('Not a member of this group');
+      if (memberError || !member) {
+        throw new BadRequestException('Not a member of this group');
+      }
+
+      const { data, error } = await client
+        .from('settlements')
+        .select('*, payer:users!payer_id(id, display_name), payee:users!payee_id(id, display_name)')
+        .eq('group_id', groupId)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      return data;
+    } else {
+      // P2P settlements
+      const { data, error } = await client
+        .from('settlements')
+        .select('*, payer:users!payer_id(id, display_name), payee:users!payee_id(id, display_name)')
+        .is('group_id', null)
+        .or(`payer_id.eq.${userId},payee_id.eq.${userId}`)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      return data;
     }
-
-    const { data, error } = await client
-      .from('settlements')
-      .select('*, payer:users!payer_id(id, display_name), payee:users!payee_id(id, display_name)')
-      .eq('group_id', groupId)
-      .eq('is_deleted', false)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      throw new InternalServerErrorException(error.message);
-    }
-    return data;
   }
 
   async updateSettlement(id: string, userId: string, updateDto: UpdateSettlementDto) {

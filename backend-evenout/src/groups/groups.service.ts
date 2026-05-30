@@ -264,4 +264,73 @@ export class GroupsService {
 
     return { message: 'Member removed successfully' };
   }
+
+  async addMember(groupId: string, adderId: string, targetUserId: string) {
+    const client = this.supabaseService.getAdmin();
+
+    // 1. Verify the adder is an active member
+    const { data: adder, error: adderError } = await client
+      .from('group_members')
+      .select('id')
+      .eq('group_id', groupId)
+      .eq('user_id', adderId)
+      .eq('is_active', true)
+      .single();
+
+    if (adderError || !adder) {
+      throw new ForbiddenException('You must be a member of the group to add someone');
+    }
+
+    // 2. Verify adder and target are friends
+    const { data: friendship, error: friendError } = await client
+      .from('friendships')
+      .select('id')
+      .eq('status', 'accepted')
+      .or(`and(requester_id.eq.${adderId},addressee_id.eq.${targetUserId}),and(requester_id.eq.${targetUserId},addressee_id.eq.${adderId})`)
+      .maybeSingle();
+
+    if (friendError || !friendship) {
+      throw new ForbiddenException('You can only add people who are your accepted friends');
+    }
+
+    // 3. Check if target is already in the group
+    const { data: existingMember } = await client
+      .from('group_members')
+      .select('id, is_active')
+      .eq('group_id', groupId)
+      .eq('user_id', targetUserId)
+      .maybeSingle();
+
+    if (existingMember) {
+      if (existingMember.is_active) {
+        throw new BadRequestException('User is already a member of this group');
+      } else {
+        // Re-activate member
+        const { error: updateError } = await client
+          .from('group_members')
+          .update({ is_active: true, left_at: null })
+          .eq('id', existingMember.id);
+
+        if (updateError) {
+          throw new InternalServerErrorException('Error adding member back to group');
+        }
+        return { message: 'Member added successfully' };
+      }
+    }
+
+    // 4. Insert new member
+    const { error: insertError } = await client
+      .from('group_members')
+      .insert({
+        group_id: groupId,
+        user_id: targetUserId,
+        role: 'member',
+      });
+
+    if (insertError) {
+      throw new InternalServerErrorException(insertError.message || 'Error adding member');
+    }
+
+    return { message: 'Member added successfully' };
+  }
 }

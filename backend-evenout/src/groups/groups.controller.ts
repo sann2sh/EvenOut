@@ -11,6 +11,7 @@ import { GroupsService } from './groups.service';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { JoinGroupDto } from './dto/join-group.dto';
+import { AddMemberDto } from './dto/add-member.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('groups')
@@ -54,6 +55,15 @@ export class GroupsController {
   @Get(':id/members')
   getGroupMembers(@CurrentUser() user: any, @Param('id') id: string) {
     return this.groupsService.getGroupMembers(id, user.id);
+  }
+
+  @Post(':id/members')
+  addMember(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() addMemberDto: AddMemberDto,
+  ) {
+    return this.groupsService.addMember(id, user.id, addMemberDto.user_id);
   }
 
   @Delete(':id/members/:userId')

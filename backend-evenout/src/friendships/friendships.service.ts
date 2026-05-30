@@ -66,7 +66,7 @@ export class FriendshipsService {
     }
 
     // Map to a clean list of friends
-    return data.map((f) => {
+    return data.map((f: any) => {
       const friend = f.requester.id === userId ? f.addressee : f.requester;
       return {
         friendshipId: f.id,

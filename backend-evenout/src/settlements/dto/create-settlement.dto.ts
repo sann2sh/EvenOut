@@ -11,8 +11,9 @@ export class CreateSettlementDto {
   @IsUUID()
   id?: string;
 
+  @IsOptional()
   @IsUUID()
-  group_id: string;
+  group_id?: string;
 
   @IsUUID()
   payer_id: string;
@@ -24,9 +25,7 @@ export class CreateSettlementDto {
   @Min(0.01)
   amount: number;
 
-  @IsOptional()
-  @IsString()
-  currency?: string = 'NPR';
+
 
   @IsOptional()
   @IsEnum(SettlementStatus)

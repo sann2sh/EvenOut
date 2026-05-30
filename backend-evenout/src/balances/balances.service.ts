@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../common/supabase/supabase.service';
 
-interface UserBalance {
+export interface UserBalance {
   userId: string;
   netBalance: number;
   displayName?: string;

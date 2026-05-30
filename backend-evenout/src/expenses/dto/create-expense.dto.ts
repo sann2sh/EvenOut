@@ -43,16 +43,15 @@ export class CreateExpenseDto {
   @IsUUID()
   id?: string; // Client can provide this for offline-first support
 
+  @IsOptional()
   @IsUUID()
-  group_id: string;
+  group_id?: string;
 
   @IsNumber()
   @Min(0.01)
   amount: number;
 
-  @IsOptional()
-  @IsString()
-  currency?: string = 'NPR';
+
 
   @IsString()
   description: string;

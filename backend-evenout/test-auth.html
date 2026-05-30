@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EvenOut Auth Tester</title>
+    <!-- Load Supabase JS from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: sans-serif; padding: 2rem; max-width: 600px; margin: auto; }
+        .card { border: 1px solid #ccc; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        input { display: block; width: 100%; margin-bottom: 1rem; padding: 0.5rem; }
+        button { padding: 0.75rem 1.5rem; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; font-size: 0.85rem; border-radius: 4px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>EvenOut Auth Token Generator</h2>
+        <p>Enter your Supabase credentials to sign in and get your JWT for Postman.</p>
+        
+        <input type="text" id="supabaseUrl" placeholder="Supabase URL (https://xxxx.supabase.co)">
+        <input type="password" id="supabaseKey" placeholder="Supabase Anon Key">
+        
+        <button id="loginBtn" onclick="signInWithGoogle()">Sign in with Google</button>
+        <button id="logoutBtn" class="hidden" onclick="signOut()">Sign Out</button>
+        
+        <div id="result" class="hidden">
+            <h3>Your Access Token (JWT)</h3>
+            <p>Copy this and paste it into Postman's "Bearer Token" field:</p>
+            <pre id="tokenDisplay"></pre>
+        </div>
+    </div>
+
+    <script>
+        let supabaseClient;
+
+        // On page load, check if we have the credentials in localStorage and if a session exists
+        window.onload = async () => {
+            const savedUrl = localStorage.getItem('sb_url');
+            const savedKey = localStorage.getItem('sb_key');
+            
+            if (savedUrl && savedKey) {
+                document.getElementById('supabaseUrl').value = savedUrl;
+                document.getElementById('supabaseKey').value = savedKey;
+                
+                supabaseClient = window.supabase.createClient(savedUrl, savedKey);
+                
+                // Check if returning from OAuth redirect
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session) {
+                    showToken(session.access_token);
+                }
+            }
+        };
+
+        async function signInWithGoogle() {
+            const url = document.getElementById('supabaseUrl').value;
+            const key = document.getElementById('supabaseKey').value;
+            
+            if(!url || !key) {
+                alert("Please enter URL and Key");
+                return;
+            }
+
+            localStorage.setItem('sb_url', url);
+            localStorage.setItem('sb_key', key);
+            
+            supabaseClient = window.supabase.createClient(url, key);
+
+            const { data, error } = await supabaseClient.auth.signInWithOAuth({
+                provider: 'google',
+            });
+
+            if(error) alert(error.message);
+        }
+
+        async function signOut() {
+            if(supabaseClient) {
+                await supabaseClient.auth.signOut();
+                document.getElementById('result').classList.add('hidden');
+                document.getElementById('loginBtn').classList.remove('hidden');
+                document.getElementById('logoutBtn').classList.add('hidden');
+            }
+        }
+
+        function showToken(token) {
+            document.getElementById('result').classList.remove('hidden');
+            document.getElementById('tokenDisplay').innerText = token;
+            document.getElementById('loginBtn').classList.add('hidden');
+            document.getElementById('logoutBtn').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
