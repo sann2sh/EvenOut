@@ -6,32 +6,50 @@ const Color appGreen = Color(0xFF429246); // Match with your Figma hex
 const Color appLightGreen = Color(0xFFD4E6D5);
 
 // --- REUSABLE TEXT FIELD ---
-class CustomInputField extends StatelessWidget {
+class CustomInputField extends StatefulWidget {
   final String hintText;
   final IconData prefixIcon;
   final bool isPassword;
-  final bool hasSuffix;
+  final TextEditingController? controller;
 
   const CustomInputField({
     super.key,
     required this.hintText,
     required this.prefixIcon,
     this.isPassword = false,
-    this.hasSuffix = false,
+    this.controller,
   });
 
   @override
+  State<CustomInputField> createState() => _CustomInputFieldState();
+}
+
+class _CustomInputFieldState extends State<CustomInputField> {
+  bool _obscureText = true;
+
+  @override
   Widget build(BuildContext context) {
+    final bool showToggle = widget.isPassword;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0),
       child: TextFormField(
-        obscureText: isPassword,
+        controller: widget.controller,
+        obscureText: widget.isPassword ? _obscureText : false,
+        style: const TextStyle(color: Colors.black87, fontSize: 15),
         decoration: InputDecoration(
-          hintText: hintText,
+          hintText: widget.hintText,
           hintStyle: const TextStyle(color: appGreen, fontSize: 14),
-          prefixIcon: Icon(prefixIcon, color: appGreen, size: 20),
-          suffixIcon: hasSuffix
-              ? const Icon(Icons.visibility_off, color: Colors.black54, size: 20)
+          prefixIcon: Icon(widget.prefixIcon, color: appGreen, size: 20),
+          suffixIcon: showToggle
+              ? GestureDetector(
+                  onTap: () => setState(() => _obscureText = !_obscureText),
+                  child: Icon(
+                    _obscureText ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.black54,
+                    size: 20,
+                  ),
+                )
               : null,
           enabledBorder: const UnderlineInputBorder(
             borderSide: BorderSide(color: appLightGreen, width: 1.5),
