@@ -1,14 +1,35 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend_evenout/features/groups/data/models/group_model.dart';
 
 class AddExpenseScreen extends StatefulWidget {
-  const AddExpenseScreen({super.key});
+  final String? initialGroupName;
+  const AddExpenseScreen({super.key, this.initialGroupName});
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
 }
 
 class _AddExpenseScreenState extends State<AddExpenseScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialGroupName != null) {
+      _selectedTargetName = widget.initialGroupName!;
+      _selectedTargetType = 'group';
+      
+      final matchedGroup = mockGroups.firstWhere(
+        (g) => g.name.toLowerCase() == widget.initialGroupName!.toLowerCase(),
+        orElse: () => mockGroups[0],
+      );
+      _selectedTargetEmoji = matchedGroup.avatarType == 'elephant' 
+          ? '🐘' 
+          : matchedGroup.avatarType == 'scenic' 
+              ? '⛰️' 
+              : '💎';
+    }
+  }
   final _nameController = TextEditingController(text: 'Coffee');
   final _categoryController = TextEditingController(text: 'Food');
   
@@ -22,14 +43,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   String _selectedTargetName = 'Hackathon team';
   String _selectedTargetType = 'group'; // 'friend' or 'group'
   String _selectedTargetEmoji = '🐘';
-  Color _selectedTargetColor = const Color(0xFF78909C);
   
   // Active selected Date
   String _selectedDateText = 'Month 2026';
 
   final List<Map<String, String>> _mockFriends = [
-    {'name': 'Asmit Ghimire', 'avatar': 'AG', 'color': '0xFFE91E63'},
-    {'name': 'Anuska Parajuli', 'avatar': 'AP', 'color': '0xFF9C27B0'},
+    {'name': 'Asmit Ghimire', 'avatar': 'AG', 'color': '0xFF9C27B0'},
+    {'name': 'Anuska Parajuli', 'avatar': 'AP', 'color': '0xFFE91E63'},
     {'name': 'Santosh Ray', 'avatar': 'SR', 'color': '0xFF3F51B5'},
     {'name': 'Subash Gaire', 'avatar': 'SG', 'color': '0xFF009688'},
   ];
@@ -39,11 +59,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     
-    final Color backgroundColor = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF3F3F3);
-    final Color inputFillColor = isDark ? Colors.white10 : Colors.white;
-    final Color textColor = isDark ? Colors.white : const Color(0xFF1B1B3A);
+    // Pixel-perfect replication of mockup screenshot background & colors
+    final Color backgroundColor = isDark ? const Color(0xFF1E1E2E) : const Color(0xFFEDF0F5);
+    final Color cardColor = isDark ? const Color(0xFF2A2A3A) : Colors.white;
+    final Color textColor = isDark ? Colors.white : Colors.black;
     final Color subtextColor = isDark ? Colors.white60 : Colors.black54;
-    final Color brandGreen = const Color(0xFF429246);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -52,335 +72,309 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           children: [
             Column(
               children: [
-                // 1. Sleek Header Bar matching mockup
+                // 1. Top bar with cancel (left), swipe (center), save (right)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Circular close icon
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: isDark ? Colors.white10 : Colors.grey.shade300,
-                        child: IconButton(
-                          icon: const Icon(Icons.close_rounded, size: 18),
-                          color: textColor,
-                          onPressed: () => Navigator.pop(context),
+                      // Circular close action
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: CircleAvatar(
+                          radius: 18,
+                          backgroundColor: isDark ? Colors.white10 : Colors.black.withOpacity(0.08),
+                          child: Icon(Icons.close_rounded, size: 16, color: textColor.withOpacity(0.7)),
                         ),
                       ),
                       
-                      // Center swipe bar indicator
+                      // Swipe indicator bar
                       Container(
                         width: 44,
                         height: 5,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade400,
+                          color: isDark ? Colors.white24 : Colors.grey.shade400,
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                       
-                      // Save floppy icon button
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: isDark ? Colors.white10 : Colors.grey.shade300,
-                        child: IconButton(
-                          icon: const Icon(Icons.save_rounded, size: 18),
-                          color: brandGreen,
-                          onPressed: _saveExpense,
+                      // Save outline floppy style action
+                      GestureDetector(
+                        onTap: _saveExpense,
+                        child: Icon(
+                          Icons.save_outlined,
+                          size: 22,
+                          color: textColor.withOpacity(0.7),
                         ),
                       ),
                     ],
                   ),
                 ),
                 
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                // 2. You and: Capsule selector chip
+                const SizedBox(height: 10),
+                Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _isSelectionOpen = !_isSelectionOpen;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const SizedBox(height: 10),
-                          
-                          // 2. You and: Target capsule selector chip
-                          Row(
-                            children: [
-                              Text(
-                                'You and: ',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: textColor,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _isSelectionOpen = !_isSelectionOpen;
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? Colors.white10 : Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: isDark ? Colors.white24 : Colors.grey.shade300,
-                                      width: 1.5,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.02),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (_selectedTargetEmoji.isNotEmpty) ...[
-                                        Text(_selectedTargetEmoji, style: const TextStyle(fontSize: 14)),
-                                        const SizedBox(width: 8),
-                                      ],
-                                      Text(
-                                        _selectedTargetName,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: textColor,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Icon(Icons.arrow_drop_down, color: subtextColor, size: 18),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
+                          Text(
+                            'You and: ',
+                            style: TextStyle(
+                              color: isDark ? Colors.white70 : Colors.grey.shade700,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                          const SizedBox(height: 24),
-                          
-                          // 3. Grid Form Fields ROW 1: Coffee & Category
-                          Row(
-                            children: [
-                              // Expense Title Field
-                              Expanded(
-                                flex: 3,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildFormTextField(
-                                      controller: _nameController,
-                                      hintText: 'Expense name...',
-                                      fillColor: inputFillColor,
-                                      textColor: textColor,
-                                    ),
-                                  ],
-                                ),
+                          const SizedBox(width: 4),
+                          // Scenic/mountain background avatar representation
+                          ClipOval(
+                            child: Container(
+                              width: 16,
+                              height: 16,
+                              color: Colors.blue.shade100,
+                              child: Image.network(
+                                'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=80&q=80',
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(color: Colors.blue),
                               ),
-                              const SizedBox(width: 16),
-                              
-                              // Category Selector Field
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildFormTextField(
-                                      controller: _categoryController,
-                                      hintText: 'Category...',
-                                      fillColor: inputFillColor,
-                                      textColor: textColor,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                          const SizedBox(height: 20),
-                          
-                          // 4. Grid Form Fields ROW 2: Currency Flag & Amount Input
-                          Row(
-                            children: [
-                              // Nepal flag NPR selector
-                              Expanded(
-                                flex: 2,
-                                child: _buildCurrencyDropdown(isDark, textColor, subtextColor),
-                              ),
-                              const SizedBox(width: 16),
-                              
-                              // Numeric display visual cursor text
-                              Expanded(
-                                flex: 3,
-                                child: Container(
-                                  height: 52,
-                                  alignment: Alignment.centerRight,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  decoration: BoxDecoration(
-                                    color: inputFillColor,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: brandGreen.withOpacity(0.4),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        _selectedCurrency,
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: subtextColor,
-                                        ),
-                                      ),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            _amount.isEmpty ? '0' : _amount,
-                                            style: TextStyle(
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.w900,
-                                              color: brandGreen,
-                                              fontFamily: 'monospace',
-                                            ),
-                                          ),
-                                          // Pulsating active typing cursor mock
-                                          _buildCursorIndicator(brandGreen),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
+                          const SizedBox(width: 6),
+                          Text(
+                            _selectedTargetName,
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          const SizedBox(height: 20),
-                          
-                          // 5. Grid Form Fields ROW 3: Paid By & Split Method
-                          Row(
-                            children: [
-                              // Paid By selector
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildSelectionDropdown(
-                                      label: 'Paid By',
-                                      val: _paidBy,
-                                      options: ['Kapuri', 'You', 'Asmit', 'Elle', 'Earl'],
-                                      isDark: isDark,
-                                      textColor: textColor,
-                                      subtextColor: subtextColor,
-                                      onChanged: (v) => setState(() => _paidBy = v),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              
-                              // Split method selector
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildSelectionDropdown(
-                                      label: 'Split Method',
-                                      val: _splitMethod,
-                                      options: ['Split Equally', 'Split by %', 'Split by exact amount'],
-                                      isDark: isDark,
-                                      textColor: textColor,
-                                      subtextColor: subtextColor,
-                                      onChanged: (v) => setState(() => _splitMethod = v),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                          const SizedBox(width: 6),
+                          Text(
+                            _selectedTargetEmoji,
+                            style: const TextStyle(fontSize: 13),
                           ),
-                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
                   ),
                 ),
+                const SizedBox(height: 24),
                 
-                // 6. Premium custom high-contrast keypad grid at the bottom!
-                _buildCustomKeypad(isDark, textColor, subtextColor, brandGreen),
+                // 3. Grid Form elements (Rounded white borders with soft shadows)
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ROW 1: Coffee & Category Fields
+                        Row(
+                          children: [
+                            // Coffee field
+                            Expanded(
+                              flex: 3,
+                              child: _buildMockupTextField(
+                                controller: _nameController,
+                                isDark: isDark,
+                                cardColor: cardColor,
+                                textColor: textColor,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            
+                            // Category field
+                            Expanded(
+                              flex: 2,
+                              child: _buildMockupTextField(
+                                controller: _categoryController,
+                                isDark: isDark,
+                                cardColor: cardColor,
+                                textColor: textColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        
+                        // ROW 2: Currency NPR & Amount selector
+                        Row(
+                          children: [
+                            // NPR Selector
+                            Expanded(
+                              flex: 2,
+                              child: _buildMockupCurrencyPicker(isDark, cardColor, textColor, subtextColor),
+                            ),
+                            const SizedBox(width: 14),
+                            
+                            // Amount display
+                            Expanded(
+                              flex: 3,
+                              child: Container(
+                                height: 48,
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                decoration: BoxDecoration(
+                                  color: cardColor,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        _amount.isEmpty ? '0' : _amount,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                      _buildMockupCursor(textColor),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        
+                        // ROW 3: Dropdowns and descriptive labels beneath
+                        Row(
+                          children: [
+                            // Paid By
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  _buildMockupDropdown(
+                                    val: _paidBy,
+                                    options: ['Kapuri', 'You', 'Asmit', 'Elle', 'Earl'],
+                                    isDark: isDark,
+                                    cardColor: cardColor,
+                                    textColor: textColor,
+                                    subtextColor: subtextColor,
+                                    onChanged: (v) => setState(() => _paidBy = v),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Paid By',
+                                    style: TextStyle(fontSize: 11, color: subtextColor, fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            
+                            // Split Method
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  _buildMockupDropdown(
+                                    val: _splitMethod,
+                                    options: ['Split Equally', 'Split by %', 'Split by exact amount'],
+                                    isDark: isDark,
+                                    cardColor: cardColor,
+                                    textColor: textColor,
+                                    subtextColor: subtextColor,
+                                    onChanged: (v) => setState(() => _splitMethod = v),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Split Method',
+                                    style: TextStyle(fontSize: 11, color: subtextColor, fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                // 4. Custom keypads replicating mockup layout perfectly
+                _buildMockupKeypad(isDark, textColor, subtextColor),
               ],
             ),
             
-            // 7. Expandable floating overlay for "You and" selections matching mockup
+            // 5. Dynamic selector list drawer
             if (_isSelectionOpen)
-              _buildSelectionOverlay(isDark, textColor, subtextColor, brandGreen),
+              _buildCleanSelectionOverlay(isDark, textColor, subtextColor),
           ],
         ),
       ),
     );
   }
 
-  // Visual helper to draw custom form textfield
-  Widget _buildFormTextField({
+  // Pure white borderless field matching mockup
+  Widget _buildMockupTextField({
     required TextEditingController controller,
-    required String hintText,
-    required Color fillColor,
+    required bool isDark,
+    required Color cardColor,
     required Color textColor,
   }) {
     return Container(
-      height: 52,
+      height: 48,
       decoration: BoxDecoration(
-        color: fillColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.01),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: cardColor,
+        borderRadius: BorderRadius.circular(10),
       ),
       child: TextField(
         controller: controller,
-        style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 15),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        style: TextStyle(color: textColor, fontWeight: FontWeight.normal, fontSize: 15),
+        decoration: const InputDecoration(
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         ),
       ),
     );
   }
 
-  // Visual custom Nepal Flag 🇳🇵 & NPR selector dropdown
-  Widget _buildCurrencyDropdown(bool isDark, Color textColor, Color subtextColor) {
+  // Currency Picker matching mockup
+  Widget _buildMockupCurrencyPicker(bool isDark, Color cardColor, Color textColor, Color subtextColor) {
     return Container(
-      height: 52,
+      height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white10 : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
-              // Nepal Flag icon vector
               Container(
                 width: 22,
                 height: 18,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(2),
-                  color: const Color(0xFFDC143C), // Crimson
-                  border: Border.all(color: const Color(0xFF003893), width: 1.5), // Royal Blue Outline
+                  color: const Color(0xFFDC143C),
+                  border: Border.all(color: const Color(0xFF003893), width: 1.5),
                 ),
-                child: Center(
+                child: const Center(
                   child: Text(
                     '🇳🇵',
                     style: TextStyle(fontSize: 10, height: 1.0),
@@ -390,7 +384,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               const SizedBox(width: 8),
               Text(
                 _selectedCurrency,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: textColor),
               ),
             ],
           ),
@@ -400,29 +394,29 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
-  // Visual helper dropdown item picker
-  Widget _buildSelectionDropdown({
-    required String label,
+  // Dropdown matching mockup
+  Widget _buildMockupDropdown({
     required String val,
     required List<String> options,
     required bool isDark,
+    required Color cardColor,
     required Color textColor,
     required Color subtextColor,
     required Function(String) onChanged,
   }) {
     return Container(
-      height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white10 : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(10),
       ),
       child: DropdownButton<String>(
         value: val,
         icon: Icon(Icons.keyboard_arrow_down_rounded, color: subtextColor, size: 18),
         underline: const SizedBox(),
         isExpanded: true,
-        style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13),
+        style: TextStyle(color: textColor, fontWeight: FontWeight.normal, fontSize: 14),
         dropdownColor: isDark ? const Color(0xFF2E2E2E) : Colors.white,
         items: options.map((String opt) {
           return DropdownMenuItem<String>(
@@ -437,8 +431,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
-  // Pulsating mock cursor line
-  Widget _buildCursorIndicator(Color color) {
+  // Pulsating Cursor representing manual focus
+  Widget _buildMockupCursor(Color color) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 500),
@@ -446,9 +440,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         return Opacity(
           opacity: val > 0.5 ? 1.0 : 0.0,
           child: Container(
-            width: 2.5,
-            height: 22,
-            margin: const EdgeInsets.only(left: 4),
+            width: 1.5,
+            height: 18,
+            margin: const EdgeInsets.only(left: 3),
             color: color,
           ),
         );
@@ -457,244 +451,75 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
-  // 1. Expandable Floating Selection Drawer
-  Widget _buildSelectionOverlay(bool isDark, Color textColor, Color subtextColor, Color brandGreen) {
-    return Positioned(
-      top: 60,
-      left: 24,
-      right: 24,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF2E2E2E) : Colors.white,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.18),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Search field
-            Container(
-              height: 38,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white10 : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.search, color: subtextColor, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      style: TextStyle(color: textColor, fontSize: 13),
-                      decoration: InputDecoration(
-                        hintText: 'Search friends or groups...',
-                        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 12),
-                        border: InputBorder.none,
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-            
-            // Friends section
-            Text(
-              'Friends :',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: subtextColor),
-            ),
-            const SizedBox(height: 8),
-            
-            // Friends items list
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _mockFriends.length,
-              itemBuilder: (context, index) {
-                final friend = _mockFriends[index];
-                final name = friend['name']!;
-                final avatar = friend['avatar']!;
-                final isSelected = _selectedTargetName == name;
-                
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  leading: CircleAvatar(
-                    radius: 14,
-                    backgroundColor: Color(int.parse(friend['color']!)),
-                    child: Text(avatar, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                  ),
-                  title: Text(
-                    name,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
-                  ),
-                  trailing: Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: isSelected ? brandGreen : Colors.transparent,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: isSelected ? brandGreen : Colors.grey.shade400, width: 1.5),
-                    ),
-                    child: isSelected ? const Icon(Icons.check, size: 10, color: Colors.white) : null,
-                  ),
-                  onTap: () {
-                    setState(() {
-                      _selectedTargetName = name;
-                      _selectedTargetType = 'friend';
-                      _selectedTargetEmoji = '👤';
-                      _isSelectionOpen = false;
-                      // Instantly adjust default PaidBy options
-                      _paidBy = 'You';
-                    });
-                  },
-                );
-              },
-            ),
-            const Divider(height: 20),
-            
-            // Groups Section
-            Text(
-              'Groups :',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: subtextColor),
-            ),
-            const SizedBox(height: 8),
-            
-            // Group lists item matching mockup
-            Column(
-              children: mockGroups.map((group) {
-                final isSelected = _selectedTargetName == group.name;
-                final String emoji = group.avatarType == 'elephant' 
-                    ? '🐘' 
-                    : group.avatarType == 'scenic' 
-                        ? '⛰️' 
-                        : '💎';
-                
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  leading: CircleAvatar(
-                    radius: 14,
-                    backgroundColor: group.avatarBgColor,
-                    child: Icon(
-                      group.avatarType == 'diamond' 
-                          ? Icons.diamond_rounded 
-                          : group.avatarType == 'scenic' 
-                              ? Icons.landscape_rounded 
-                              : Icons.terminal_rounded,
-                      size: 14,
-                      color: Colors.white,
-                    ),
-                  ),
-                  title: Text(
-                    group.name,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
-                  ),
-                  trailing: Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: isSelected ? brandGreen : Colors.transparent,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: isSelected ? brandGreen : Colors.grey.shade400, width: 1.5),
-                    ),
-                    child: isSelected ? const Icon(Icons.check, size: 10, color: Colors.white) : null,
-                  ),
-                  onTap: () {
-                    setState(() {
-                      _selectedTargetName = group.name;
-                      _selectedTargetType = 'group';
-                      _selectedTargetEmoji = emoji;
-                      _selectedTargetColor = group.avatarBgColor;
-                      _isSelectionOpen = false;
-                      // Auto-populate PaidBy list with actual group members
-                      _paidBy = 'Kapuri';
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 2. High-Contrast Keypad Grid View Drawer
-  Widget _buildCustomKeypad(bool isDark, Color textColor, Color subtextColor, Color brandGreen) {
-    final keypadColor = isDark ? const Color(0xFF252525) : const Color(0xFFD6D8DD);
-    final keyColor = isDark ? const Color(0xFF333333) : Colors.white;
+  // Mockup Alphanumeric Keypad matching screenshot details
+  Widget _buildMockupKeypad(bool isDark, Color textColor, Color subtextColor) {
+    final keypadColor = isDark ? const Color(0xFF1E1E28) : const Color(0xFFD6DBE2);
+    final keyBgColor = isDark ? const Color(0xFF2E2E3E) : Colors.white;
     
     return Container(
       color: keypadColor,
       child: Column(
         children: [
-          // A. Custom Date Banner Picker "Month 2026 >"
+          // Custom Date Row: "Month 2026 >"
           GestureDetector(
             onTap: _pickCustomDate,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.04),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              color: Colors.black.withOpacity(0.02),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     _selectedDateText,
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.normal,
                       color: textColor,
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.chevron_right_rounded, color: brandGreen, size: 18),
+                  const SizedBox(width: 3),
+                  // Chevron blue arrow
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF007AFF), // Blue color matching mockup arrow
+                    size: 16,
+                  ),
                 ],
               ),
             ),
           ),
           
-          // B. Numeric Keys grid
+          // Keys Grid
           Padding(
-            padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 15.0, top: 4.0),
+            padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 20.0, top: 4.0),
             child: Column(
               children: [
                 Row(
                   children: [
-                    _buildKeypadButton('1', '', keyColor, textColor),
-                    _buildKeypadButton('2', 'ABC', keyColor, textColor),
-                    _buildKeypadButton('3', 'DEF', keyColor, textColor),
+                    _buildMockupKey('1', '', keyBgColor, textColor),
+                    _buildMockupKey('2', 'ABC', keyBgColor, textColor),
+                    _buildMockupKey('3', 'DEF', keyBgColor, textColor),
                   ],
                 ),
                 Row(
                   children: [
-                    _buildKeypadButton('4', 'GHI', keyColor, textColor),
-                    _buildKeypadButton('5', 'JKL', keyColor, textColor),
-                    _buildKeypadButton('6', 'MNO', keyColor, textColor),
+                    _buildMockupKey('4', 'GHI', keyBgColor, textColor),
+                    _buildMockupKey('5', 'JKL', keyBgColor, textColor),
+                    _buildMockupKey('6', 'MNO', keyBgColor, textColor),
                   ],
                 ),
                 Row(
                   children: [
-                    _buildKeypadButton('7', 'PQRS', keyColor, textColor),
-                    _buildKeypadButton('8', 'TUV', keyColor, textColor),
-                    _buildKeypadButton('9', 'WXYZ', keyColor, textColor),
+                    _buildMockupKey('7', 'PQRS', keyBgColor, textColor),
+                    _buildMockupKey('8', 'TUV', keyBgColor, textColor),
+                    _buildMockupKey('9', 'WXYZ', keyBgColor, textColor),
                   ],
                 ),
                 Row(
                   children: [
-                    _buildKeypadButton('.', '', keyColor, textColor),
-                    _buildKeypadButton('0', '', keyColor, textColor),
-                    _buildKeypadBackspace(keyColor, textColor),
+                    _buildMockupKey('.', '', keyBgColor, textColor),
+                    _buildMockupKey('0', '', keyBgColor, textColor),
+                    _buildBackspaceButton(keyBgColor, textColor),
                   ],
                 ),
               ],
@@ -705,19 +530,19 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
-  // Key item helper
-  Widget _buildKeypadButton(String digit, String subtitle, Color btnBgColor, Color txtColor) {
+  // Key element builder
+  Widget _buildMockupKey(String digit, String letters, Color bg, Color txt) {
     return Expanded(
       child: Container(
         margin: const EdgeInsets.all(4.0),
         height: 48,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: btnBgColor,
+            backgroundColor: bg,
             elevation: 1,
-            shadowColor: Colors.black.withOpacity(0.1),
+            shadowColor: Colors.black.withOpacity(0.08),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
             padding: EdgeInsets.zero,
           ),
@@ -729,17 +554,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 digit,
                 style: TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: txtColor,
+                  fontWeight: FontWeight.normal,
+                  color: txt,
                 ),
               ),
-              if (subtitle.isNotEmpty)
+              if (letters.isNotEmpty)
                 Text(
-                  subtitle,
+                  letters,
                   style: const TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey,
+                    fontSize: 7,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black54,
+                    letterSpacing: 0.5,
                   ),
                 ),
             ],
@@ -749,25 +575,25 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
-  // Backspace key item helper
-  Widget _buildKeypadBackspace(Color btnBgColor, Color txtColor) {
+  // Backspace icon button
+  Widget _buildBackspaceButton(Color bg, Color txt) {
     return Expanded(
       child: Container(
         margin: const EdgeInsets.all(4.0),
         height: 48,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: btnBgColor,
+            backgroundColor: bg,
             elevation: 1,
-            shadowColor: Colors.black.withOpacity(0.1),
+            shadowColor: Colors.black.withOpacity(0.08),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
           ),
           onPressed: _onBackspacePressed,
           child: Icon(
             Icons.backspace_outlined,
-            color: txtColor,
+            color: txt,
             size: 18,
           ),
         ),
@@ -775,16 +601,184 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
-  // Appends characters on pressing numbers
+  // Selection overlay dropdown matching mockup theme
+  Widget _buildCleanSelectionOverlay(bool isDark, Color textColor, Color subtextColor) {
+    return Positioned(
+      top: 60,
+      left: 20,
+      right: 20,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF262626) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Search Input
+            Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white10 : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.search_rounded, color: Colors.blue, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      style: GoogleFonts.inter(color: textColor, fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Search friends or groups...',
+                        hintStyle: GoogleFonts.inter(color: Colors.grey.shade400, fontSize: 12),
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Friends section
+            Text(
+              'Friends :',
+              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: subtextColor),
+            ),
+            const SizedBox(height: 8),
+            
+            Column(
+              children: _mockFriends.map((friend) {
+                final name = friend['name']!;
+                final avatar = friend['avatar']!;
+                final isSelected = _selectedTargetName == name;
+                
+                return Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    leading: CircleAvatar(
+                      radius: 12,
+                      backgroundColor: Color(int.parse(friend['color']!)),
+                      child: Text(avatar, style: GoogleFonts.inter(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                    ),
+                    title: Text(
+                      name,
+                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
+                    ),
+                    trailing: Container(
+                      width: 16,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.blue : Colors.transparent,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: isSelected ? Colors.blue : Colors.grey.shade400, width: 1.5),
+                      ),
+                      child: isSelected ? const Icon(Icons.check, size: 10, color: Colors.white) : null,
+                    ),
+                    onTap: () {
+                      setState(() {
+                        _selectedTargetName = name;
+                        _selectedTargetType = 'friend';
+                        _selectedTargetEmoji = '👤';
+                        _isSelectionOpen = false;
+                        _paidBy = 'You';
+                      });
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+            const Divider(height: 16),
+            
+            // Groups Section
+            Text(
+              'Groups :',
+              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: subtextColor),
+            ),
+            const SizedBox(height: 8),
+            
+            Column(
+              children: mockGroups.map((group) {
+                final isSelected = _selectedTargetName == group.name;
+                final String emoji = group.avatarType == 'elephant' 
+                    ? '🐘' 
+                    : group.avatarType == 'scenic' 
+                        ? '⛰️' 
+                        : '💎';
+                
+                return Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    leading: CircleAvatar(
+                      radius: 12,
+                      backgroundColor: group.avatarBgColor,
+                      child: Icon(
+                        group.avatarType == 'diamond' 
+                            ? Icons.diamond_rounded 
+                            : group.avatarType == 'scenic' 
+                                ? Icons.landscape_rounded 
+                                : Icons.terminal_rounded,
+                        size: 11,
+                        color: Colors.white,
+                      ),
+                    ),
+                    title: Text(
+                      group.name,
+                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
+                    ),
+                    trailing: Container(
+                      width: 16,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.blue : Colors.transparent,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: isSelected ? Colors.blue : Colors.grey.shade400, width: 1.5),
+                      ),
+                      child: isSelected ? const Icon(Icons.check, size: 10, color: Colors.white) : null,
+                    ),
+                    onTap: () {
+                      setState(() {
+                        _selectedTargetName = group.name;
+                        _selectedTargetType = 'group';
+                        _selectedTargetEmoji = emoji;
+                        _isSelectionOpen = false;
+                        _paidBy = 'Kapuri';
+                      });
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Key operations
   void _onKeypadPressed(String val) {
     setState(() {
       if (val == '.') {
-        // Prevent multiple dots
         if (!_amount.contains('.')) {
           _amount = _amount.isEmpty ? '0.' : '$_amount.';
         }
       } else {
-        // Prevent multiple leading zeroes
         if (_amount == '0') {
           _amount = val;
         } else {
@@ -794,7 +788,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     });
   }
 
-  // Backspace function
   void _onBackspacePressed() {
     setState(() {
       if (_amount.isNotEmpty) {
@@ -803,7 +796,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     });
   }
 
-  // Custom date picker drawer
   void _pickCustomDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -814,7 +806,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF429246),
+              primary: Color(0xFF007AFF),
               onPrimary: Colors.white,
               onSurface: Colors.black,
             ),
@@ -831,7 +823,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
   }
 
-  // Save the manual expense dynamically inside group datasets
   void _saveExpense() {
     final title = _nameController.text.trim();
     final doubleAmt = double.tryParse(_amount) ?? 0.0;
@@ -856,7 +847,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       return;
     }
 
-    // Dynamic Database integration! If a group is selected, append the expense live so they immediately see the charts update!
     if (_selectedTargetType == 'group') {
       final matchedGroup = mockGroups.firstWhere(
         (g) => g.name.toLowerCase() == _selectedTargetName.toLowerCase(),
@@ -874,7 +864,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           icon: _categoryController.text.toLowerCase().contains('coffee') 
               ? Icons.local_cafe_rounded 
               : Icons.receipt_long_rounded,
-          color: const Color(0xFF4CAF50),
+          color: Colors.blue,
         ),
       );
     }
@@ -889,7 +879,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             Text('Expense "\$$doubleAmt for $title" split successfully!'),
           ],
         ),
-        backgroundColor: const Color(0xFF429246),
+        backgroundColor: Colors.blue,
         behavior: SnackBarBehavior.floating,
       ),
     );
