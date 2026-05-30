@@ -49,4 +49,22 @@ export class AuthService {
       user: data.user,
     };
   }
+
+  async refresh(refreshToken: string) {
+    const client = this.supabaseService.getAdmin();
+    
+    const { data, error } = await client.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    return {
+      message: 'Token refreshed successfully',
+      access_token: data.session?.access_token,
+      refresh_token: data.session?.refresh_token,
+    };
+  }
 }
