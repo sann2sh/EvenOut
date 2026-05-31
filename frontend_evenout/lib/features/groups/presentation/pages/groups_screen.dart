@@ -1,42 +1,81 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/groups_repository.dart';
 import '../../data/models/group_model.dart';
+import '../providers/groups_provider.dart';
 import 'group_details_screen.dart';
 import 'create_group_screen.dart';
 import 'join_group_screen.dart';
 
-class GroupsScreen extends StatefulWidget {
+class GroupsScreen extends ConsumerStatefulWidget {
   const GroupsScreen({super.key});
 
   @override
-  State<GroupsScreen> createState() => _GroupsScreenState();
+  ConsumerState<GroupsScreen> createState() => _GroupsScreenState();
 }
 
-class _GroupsScreenState extends State<GroupsScreen> {
+class _GroupsScreenState extends ConsumerState<GroupsScreen> {
   String _searchQuery = '';
   bool _isSearchExpanded = false;
   final TextEditingController _searchController = TextEditingController();
 
-  List<EvenOutGroup> get _filteredGroups {
-    if (_searchQuery.isEmpty) {
-      return mockGroups;
-    }
-    return mockGroups
-        .where((group) =>
-            group.name.toLowerCase().contains(_searchQuery.toLowerCase()))
+  // Palette for deterministic letter-avatars (keyed off the group id).
+  static const List<Color> _avatarPalette = [
+    Color(0xFF29B6F6),
+    Color(0xFF8D6E63),
+    Color(0xFF78909C),
+    Color(0xFF7E57C2),
+    Color(0xFFEF5350),
+    Color(0xFF26A69A),
+    Color(0xFFFFA726),
+  ];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Group> _filterGroups(List<Group> groups) {
+    if (_searchQuery.isEmpty) return groups;
+    return groups
+        .where((g) => g.name.toLowerCase().contains(_searchQuery.toLowerCase()))
         .toList();
+  }
+
+  Color _avatarColor(String id) {
+    final hash = id.codeUnits.fold<int>(0, (sum, c) => sum + c);
+    return _avatarPalette[hash % _avatarPalette.length];
+  }
+
+  /// Adapts a live [Group] to the mock model the details screen consumes, so
+  /// tapping a card still opens it (members/expenses load lazily there later).
+  EvenOutGroup _toDetailsGroup(Group g) {
+    return EvenOutGroup(
+      id: g.id,
+      name: g.name,
+      avatarType: 'letter',
+      avatarBgColor: _avatarColor(g.id),
+      lastActive: (g.description?.isNotEmpty ?? false)
+          ? g.description!
+          : 'Tap to view group details',
+      members: [],
+      expenses: [],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
-    // Sleek theme-specific values
+
     final Color backgroundColor = isDark ? const Color(0xFF121212) : const Color(0xFFFAFAFA);
     final Color cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
     final Color textColor = isDark ? Colors.white : const Color(0xFF1B1B3A);
     final Color subtextColor = isDark ? Colors.white60 : Colors.black54;
     final Color brandGreen = const Color(0xFF429246);
+
+    final groupsAsync = ref.watch(myGroupsProvider);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -56,8 +95,8 @@ class _GroupsScreenState extends State<GroupsScreen> {
                     width: _isSearchExpanded ? MediaQuery.of(context).size.width * 0.70 : 44.0,
                     height: 44.0,
                     decoration: BoxDecoration(
-                      color: _isSearchExpanded 
-                          ? (isDark ? Colors.white12 : Colors.grey.shade100) 
+                      color: _isSearchExpanded
+                          ? (isDark ? Colors.white12 : Colors.grey.shade100)
                           : brandGreen,
                       shape: _isSearchExpanded ? BoxShape.rectangle : BoxShape.circle,
                       borderRadius: _isSearchExpanded ? BorderRadius.circular(22) : null,
@@ -108,7 +147,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                             },
                           ),
                   ),
-                  
+
                   // Simple Header Title
                   if (!_isSearchExpanded)
                     Text(
@@ -119,136 +158,56 @@ class _GroupsScreenState extends State<GroupsScreen> {
                         color: textColor,
                       ),
                     ),
-                  
+
                   // Spacing alignment buddy
                   const SizedBox(width: 44),
                 ],
               ),
             ),
 
-            // Group List Section
+            // Group List Section — live data
             Expanded(
-              child: _filteredGroups.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.search_off_rounded, size: 64, color: subtextColor.withOpacity(0.5)),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No groups match your search',
-                            style: TextStyle(color: subtextColor, fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-                      itemCount: _filteredGroups.length,
-                      itemBuilder: (context, index) {
-                        final group = _filteredGroups[index];
-                        final double userBal = group.userBalance;
-                        
-                        // Set up dynamic layout coloring for balances
-                        final Color balColor = userBal > 0 
-                            ? const Color(0xFF2E7D32) // Owed money (green)
-                            : userBal < 0 
-                                ? const Color(0xFFC62828) // Owes money (red)
-                                : subtextColor;
-                        
-                        final String balText = userBal > 0 
-                            ? 'Owes you \$${userBal.toStringAsFixed(2)}'
-                            : userBal < 0 
-                                ? 'You owe \$${userBal.abs().toStringAsFixed(2)}'
-                                : 'All settled up';
+              child: groupsAsync.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF429246)),
+                ),
+                error: (err, _) => _buildErrorState(err, subtextColor, brandGreen),
+                data: (allGroups) {
+                  final groups = _filterGroups(allGroups);
 
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 16.0),
-                          decoration: BoxDecoration(
-                            color: cardColor,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(20),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => GroupDetailsScreen(group: group),
-                                  ),
-                                );
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-                                child: Row(
-                                  children: [
-                                    // Custom visual avatars perfectly matched to mockup screenshot
-                                    _buildCustomAvatar(group.avatarType, group.avatarBgColor),
-                                    
-                                    const SizedBox(width: 16.0),
-                                    
-                                    // Center Details: Title, balance active
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            group.name,
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: textColor,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4.0),
-                                          Row(
-                                            children: [
-                                              Container(
-                                                width: 6,
-                                                height: 6,
-                                                decoration: BoxDecoration(
-                                                  color: balColor,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                balText,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: balColor,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    
-                                    // Right Chevron indicator
-                                    Icon(
-                                      Icons.chevron_right_rounded,
-                                      color: subtextColor.withOpacity(0.6),
-                                      size: 24,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
+                  if (allGroups.isEmpty) {
+                    return _buildEmptyState(
+                      icon: Icons.groups_2_outlined,
+                      title: 'No groups yet',
+                      subtitle: 'Create a group or join one with an invite code',
+                      subtextColor: subtextColor,
+                    );
+                  }
+
+                  if (groups.isEmpty) {
+                    return _buildEmptyState(
+                      icon: Icons.search_off_rounded,
+                      title: 'No groups match your search',
+                      subtextColor: subtextColor,
+                    );
+                  }
+
+                  return RefreshIndicator(
+                    color: brandGreen,
+                    onRefresh: () async => ref.refresh(myGroupsProvider.future),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                      itemCount: groups.length,
+                      itemBuilder: (context, index) {
+                        final group = groups[index];
+                        return _buildGroupCard(
+                          group, cardColor, textColor, subtextColor, isDark,
                         );
                       },
                     ),
+                  );
+                },
+              ),
             ),
 
             // Actions Overlay Button Panel (Create Group & Join Group)
@@ -270,8 +229,8 @@ class _GroupsScreenState extends State<GroupsScreen> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        onPressed: () {
-                          Navigator.push(
+                        onPressed: () async {
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => const CreateGroupScreen(),
@@ -290,7 +249,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                     ),
                   ),
                   const SizedBox(width: 15.0),
-                  
+
                   // Join Group Button
                   Expanded(
                     child: SizedBox(
@@ -305,8 +264,8 @@ class _GroupsScreenState extends State<GroupsScreen> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        onPressed: () {
-                          Navigator.push(
+                        onPressed: () async {
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => const JoinGroupScreen(),
@@ -333,65 +292,185 @@ class _GroupsScreenState extends State<GroupsScreen> {
     );
   }
 
-  // Visual helper to render perfect avatars based on types from user screenshot
-  Widget _buildCustomAvatar(String type, Color bgColor) {
-    if (type == 'diamond') {
-      return Container(
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          color: bgColor,
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            colors: [bgColor.withOpacity(0.85), bgColor],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+  Widget _buildGroupCard(
+    Group group,
+    Color cardColor,
+    Color textColor,
+    Color subtextColor,
+    bool isDark,
+  ) {
+    final String subtitle = (group.description?.isNotEmpty ?? false)
+        ? group.description!
+        : 'Tap to view details';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16.0),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-        ),
-        child: const Icon(
-          Icons.diamond_rounded,
-          color: Colors.white,
-          size: 22,
-        ),
-      );
-    } else if (type == 'scenic') {
-      return Container(
-        width: 46,
-        height: 46,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          image: DecorationImage(
-            image: NetworkImage(
-              'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=150&q=80',
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => GroupDetailsScreen(group: _toDetailsGroup(group)),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+            child: Row(
+              children: [
+                _buildLiveAvatar(group),
+                const SizedBox(width: 16.0),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        group.name,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4.0),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: subtextColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: subtextColor.withOpacity(0.6),
+                  size: 24,
+                ),
+              ],
             ),
-            fit: BoxFit.cover,
           ),
         ),
-      );
-    } else if (type == 'elephant') {
-      return Container(
-        width: 46,
-        height: 46,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          image: DecorationImage(
-            image: NetworkImage(
-              'https://images.unsplash.com/photo-1557050543-4d5f4e07ef46?auto=format&fit=crop&w=150&q=80',
-            ),
-            fit: BoxFit.cover,
-          ),
-        ),
-      );
-    } else {
-      return Container(
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade400,
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(Icons.group_rounded, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildLiveAvatar(Group group) {
+    final color = _avatarColor(group.id);
+    if (group.avatarUrl != null && group.avatarUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: 23,
+        backgroundColor: color,
+        backgroundImage: NetworkImage(group.avatarUrl!),
       );
     }
+    final initial = group.name.trim().isNotEmpty
+        ? group.name.trim()[0].toUpperCase()
+        : '#';
+    return Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [color.withOpacity(0.85), color],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required Color subtextColor,
+  }) {
+    // Wrapped in a scroll view so RefreshIndicator-less empty states still feel right.
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 64, color: subtextColor.withOpacity(0.5)),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: TextStyle(color: subtextColor, fontSize: 16, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Text(
+                subtitle,
+                style: TextStyle(color: subtextColor, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Object err, Color subtextColor, Color brandGreen) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.cloud_off_outlined, size: 56, color: brandGreen.withOpacity(0.7)),
+          const SizedBox(height: 12),
+          Text(
+            'Could not load your groups',
+            style: TextStyle(color: subtextColor, fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              groupErrorMessage(err),
+              style: TextStyle(color: subtextColor, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () => ref.invalidate(myGroupsProvider),
+            style: ElevatedButton.styleFrom(backgroundColor: brandGreen),
+            child: const Text('Retry', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 }

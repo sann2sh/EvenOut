@@ -1,17 +1,66 @@
 import 'package:flutter/material.dart';
-import '../../data/models/group_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/groups_repository.dart';
+import '../providers/groups_provider.dart';
 
-class JoinGroupScreen extends StatefulWidget {
+class JoinGroupScreen extends ConsumerStatefulWidget {
   const JoinGroupScreen({super.key});
 
   @override
-  State<JoinGroupScreen> createState() => _JoinGroupScreenState();
+  ConsumerState<JoinGroupScreen> createState() => _JoinGroupScreenState();
 }
 
-class _JoinGroupScreenState extends State<JoinGroupScreen> with SingleTickerProviderStateMixin {
+class _JoinGroupScreenState extends ConsumerState<JoinGroupScreen> with SingleTickerProviderStateMixin {
   late AnimationController _scannerController;
   final _codeController = TextEditingController();
   bool _isProcessing = false;
+
+  Future<void> _joinGroup() async {
+    final code = _codeController.text.trim().toUpperCase();
+    if (code.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please scan a QR code or enter an invite code'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+    try {
+      final message = await ref.read(groupsRepositoryProvider).joinGroup(code);
+
+      // Refresh the groups list so the joined group appears immediately.
+      ref.invalidate(myGroupsProvider);
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.verified_rounded, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(child: Text(message)),
+            ],
+          ),
+          backgroundColor: const Color(0xFF429246),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not join group: ${groupErrorMessage(e)}'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -165,9 +214,10 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> with SingleTickerProv
             // 3. Manual code entry textfield
             TextField(
               controller: _codeController,
-              style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
+              textCapitalization: TextCapitalization.characters,
+              style: TextStyle(color: textColor, fontWeight: FontWeight.w600, letterSpacing: 1.5),
               decoration: InputDecoration(
-                hintText: 'e.g. evenout-cabin-trip',
+                hintText: 'e.g. A1B2C3D4',
                 hintStyle: TextStyle(color: subtextColor.withOpacity(0.5), fontSize: 14),
                 prefixIcon: Icon(Icons.vpn_key_rounded, color: brandGreen),
                 filled: true,
@@ -200,64 +250,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> with SingleTickerProv
                         elevation: 3,
                         shadowColor: brandGreen.withOpacity(0.3),
                       ),
-                      onPressed: () {
-                        final code = _codeController.text.trim();
-                        if (code.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please scan a QR code or enter a manual join code'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                          return;
-                        }
-
-                        setState(() {
-                          _isProcessing = true;
-                        });
-
-                        // Simulate deep link API call to join group
-                        Future.delayed(const Duration(milliseconds: 1500), () {
-                          if (context.mounted) {
-                            setState(() {
-                              _isProcessing = false;
-                              
-                              // Insert a new mock group dynamically into mockGroups representing the successful join!
-                              mockGroups.insert(
-                                0,
-                                EvenOutGroup(
-                                  id: (mockGroups.length + 1).toString(),
-                                  name: 'Mountain Cabin Crew',
-                                  avatarType: 'scenic',
-                                  avatarBgColor: const Color(0xFFF57C00),
-                                  lastActive: 'Joined just now',
-                                  members: [
-                                    GroupMember(name: 'You', avatarUrl: '', balance: 0.0),
-                                    GroupMember(name: 'Santosh Ray', avatarUrl: '', balance: 0.0),
-                                    GroupMember(name: 'Anuska', avatarUrl: '', balance: 0.0),
-                                  ],
-                                  expenses: [],
-                                ),
-                              );
-                            });
-
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Row(
-                                  children: [
-                                    Icon(Icons.verified_rounded, color: Colors.white),
-                                    SizedBox(width: 10),
-                                    Text('Successfully joined "Mountain Cabin Crew"!'),
-                                  ],
-                                ),
-                                backgroundColor: brandGreen,
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
-                        });
-                      },
+                      onPressed: _joinGroup,
                       child: const Text(
                         'JOIN GROUP',
                         style: TextStyle(

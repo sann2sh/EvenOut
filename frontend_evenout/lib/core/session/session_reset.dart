@@ -4,7 +4,9 @@ import '../../features/user/presentation/providers/user_provider.dart';
 import '../../features/dashboard/presentation/providers/home_provider.dart';
 import '../../features/dashboard/presentation/pages/home_screen.dart';
 import '../../features/user/presentation/providers/friend_requests_provider.dart';
+import '../../features/user/presentation/providers/friends_provider.dart';
 import '../../features/user/presentation/providers/user_search_provider.dart';
+import '../../features/groups/presentation/providers/groups_provider.dart';
 
 /// Invalidates every cached, user-scoped Riverpod provider so that no data
 /// from a previous account ever leaks into the next session.
@@ -19,6 +21,12 @@ void clearUserScopedProviders(WidgetRef ref) {
   // Profile + dashboard caches — the visible name / avatar / balances live here.
   ref.invalidate(currentUserProvider);
   ref.invalidate(homeDataProvider);
+
+  // Groups list — must not show the previous account's groups.
+  ref.invalidate(myGroupsProvider);
+
+  // Accepted friends list (used by home + create-group picker).
+  ref.invalidate(friendsProvider);
 
   // Friend-requests and user-search caches + their per-item action state.
   ref.invalidate(incomingRequestsProvider);
