@@ -277,13 +277,54 @@ export class ExpensesService {
       }
       return data;
     } else {
-      // P2P expenses (no group)
+      // P2P expenses (no group). Return every expense the user is involved in —
+      // either as the payer or as a split participant — with ALL of its splits
+      // included so the client can compute per-friend balances.
+      //
+      // NOTE: a naive `expense_splits!inner(*)` + `.eq('expense_splits.user_id', userId)`
+      // also filters the EMBEDDED split rows, so each expense would come back with
+      // only the caller's own split. That makes "they owe you" amounts impossible
+      // to compute. Instead we resolve the involved expense IDs first, then fetch
+      // those expenses with their full split set.
+      const { data: involvedSplits, error: splitErr } = await client
+        .from('expense_splits')
+        .select('expense_id')
+        .eq('user_id', userId);
+
+      if (splitErr) {
+        throw new InternalServerErrorException(splitErr.message);
+      }
+
+      const expenseIds = new Set<string>(
+        (involvedSplits ?? []).map((r) => r.expense_id),
+      );
+
+      // The payer may not be among the splits (e.g. paid fully for someone else),
+      // so include expenses they paid for as well.
+      const { data: paidExpenses, error: paidErr } = await client
+        .from('expenses')
+        .select('id')
+        .is('group_id', null)
+        .eq('paid_by', userId)
+        .eq('is_deleted', false);
+
+      if (paidErr) {
+        throw new InternalServerErrorException(paidErr.message);
+      }
+      for (const e of paidExpenses ?? []) {
+        expenseIds.add(e.id);
+      }
+
+      if (expenseIds.size === 0) {
+        return [];
+      }
+
       const { data, error } = await client
         .from('expenses')
-        .select('*, expense_splits!inner(*)')
+        .select('*, expense_splits(*)')
         .is('group_id', null)
         .eq('is_deleted', false)
-        .eq('expense_splits.user_id', userId)
+        .in('id', Array.from(expenseIds))
         .order('created_at', { ascending: false });
 
       if (error) {
