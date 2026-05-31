@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/groups_repository.dart';
-import '../../data/models/group_model.dart';
 import '../providers/groups_provider.dart';
 import 'group_details_screen.dart';
 import 'create_group_screen.dart';
@@ -48,21 +47,6 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
     return _avatarPalette[hash % _avatarPalette.length];
   }
 
-  /// Adapts a live [Group] to the mock model the details screen consumes, so
-  /// tapping a card still opens it (members/expenses load lazily there later).
-  EvenOutGroup _toDetailsGroup(Group g) {
-    return EvenOutGroup(
-      id: g.id,
-      name: g.name,
-      avatarType: 'letter',
-      avatarBgColor: _avatarColor(g.id),
-      lastActive: (g.description?.isNotEmpty ?? false)
-          ? g.description!
-          : 'Tap to view group details',
-      members: [],
-      expenses: [],
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -324,7 +308,7 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => GroupDetailsScreen(group: _toDetailsGroup(group)),
+                builder: (context) => GroupDetailsScreen(group: group),
               ),
             );
           },
