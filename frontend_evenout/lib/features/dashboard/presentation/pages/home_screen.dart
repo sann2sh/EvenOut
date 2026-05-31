@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../providers/home_provider.dart';
+import '../../../user/presentation/pages/user_search_sheet.dart';
+import '../../../user/presentation/pages/friend_requests_sheet.dart';
+import '../../../user/presentation/providers/friend_requests_provider.dart';
 
 // Riverpod provider to manage balance visibility state
 final balanceVisibilityProvider = StateProvider<bool>((ref) => true);
@@ -60,12 +63,9 @@ class HomeScreen extends ConsumerWidget {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.search, color: AppColors.primary, size: 28),
-                        onPressed: () {},
+                        onPressed: () => showUserSearchSheet(context),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.settings_outlined, color: AppColors.primary, size: 28),
-                        onPressed: () {},
-                      ),
+                      _NotificationBell(onTap: () => showFriendRequestsSheet(context)),
                     ],
                   ),
                   const SizedBox(height: 15),
@@ -328,6 +328,61 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
       onTap: () {},
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Badged notification bell for the top-bar
+// ---------------------------------------------------------------------------
+
+class _NotificationBell extends ConsumerWidget {
+  final VoidCallback onTap;
+  const _NotificationBell({required this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(pendingRequestCountProvider);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            const Icon(
+              Icons.notifications_outlined,
+              color: AppColors.primary,
+              size: 28,
+            ),
+            if (count > 0)
+              Positioned(
+                top: -4,
+                right: -4,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: AppColors.owe,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: Center(
+                    child: Text(
+                      count > 9 ? '9+' : '$count',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
