@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../user/presentation/providers/user_provider.dart';
 import '../../../user/data/user_repository.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 // --- Models ---
 
@@ -36,6 +38,18 @@ class HomeData {
 // --- Provider ---
 
 final homeDataProvider = FutureProvider<HomeData>((ref) async {
+  // Rebuild whenever the authenticated account changes. During sign-out or an
+  // account switch the session is briefly null; if we fired requests then they
+  // would 401 and flash a "Could not load data" error on the home screen.
+  // Instead, stay pending (spinner) until a valid session exists — the provider
+  // recomputes automatically for the new account when the session arrives.
+  final session = ref.watch(authStateProvider).valueOrNull?.session;
+  if (session == null) {
+    // Never-completing future → keeps the UI in its loading state for the brief
+    // transition window. Cancelled & replaced as soon as auth state changes.
+    return Completer<HomeData>().future;
+  }
+
   final dio = ApiClient.instance;
 
   // 1. Fetch current user profile
