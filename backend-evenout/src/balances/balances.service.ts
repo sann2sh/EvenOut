@@ -137,4 +137,85 @@ export class BalancesService {
 
     return optimizedSettlements;
   }
+
+  async getMyBalances(userId: string) {
+    const client = this.supabaseService.getAdmin();
+
+    // Fetch from peer_balances view where I am either debtor or creditor
+    const { data: rawBalances, error } = await client
+      .from('peer_balances')
+      .select('*')
+      .or(`user_id.eq.${userId},counterpart_id.eq.${userId}`);
+
+    if (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+
+    // Aggregate into a net balance per friend
+    const balanceMap = new Map<string, number>();
+
+    for (const row of rawBalances) {
+      // Ignore self-debts
+      if (row.user_id === row.counterpart_id) continue;
+
+      const amount = parseFloat(row.net_debt);
+
+      // Determine who is the friend
+      let friendId: string;
+      if (row.user_id === userId) {
+        // I am the debtor, I owe the friend `amount`
+        friendId = row.counterpart_id;
+        balanceMap.set(friendId, (balanceMap.get(friendId) || 0) - amount);
+      } else if (row.counterpart_id === userId) {
+        // I am the creditor, the friend owes me `amount`
+        friendId = row.user_id;
+        balanceMap.set(friendId, (balanceMap.get(friendId) || 0) + amount);
+      }
+    }
+
+    // Get user details to enrich the response
+    const friendIds = Array.from(balanceMap.keys());
+    let usersMap = new Map<string, any>();
+
+    if (friendIds.length > 0) {
+      const { data: users, error: userError } = await client
+        .from('users')
+        .select('id, display_name, avatar_url')
+        .in('id', friendIds);
+
+      if (userError) {
+        throw new InternalServerErrorException(userError.message);
+      }
+      
+      usersMap = new Map(users.map((u) => [u.id, u]));
+    }
+
+    let totalOwedToMe = 0;
+    let totalIOwe = 0;
+    const balances: any[] = [];
+
+    for (const [id, balance] of balanceMap.entries()) {
+      if (Math.abs(balance) > 0.01) {
+        if (balance > 0) {
+          totalOwedToMe += balance;
+        } else {
+          totalIOwe += Math.abs(balance);
+        }
+
+        balances.push({
+          user_id: id,
+          amount: parseFloat(balance.toFixed(2)),
+          display_name: usersMap.get(id)?.display_name,
+          avatar_url: usersMap.get(id)?.avatar_url,
+        });
+      }
+    }
+
+    return {
+      total_owed_to_me: parseFloat(totalOwedToMe.toFixed(2)),
+      total_i_owe: parseFloat(totalIOwe.toFixed(2)),
+      net_balance: parseFloat((totalOwedToMe - totalIOwe).toFixed(2)),
+      balances: balances.sort((a, b) => b.amount - a.amount), // Sort by amount descending
+    };
+  }
 }

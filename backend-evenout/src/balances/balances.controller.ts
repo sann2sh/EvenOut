@@ -15,4 +15,9 @@ export class BalancesController {
   getOptimizedSettlements(@CurrentUser() user: any, @Param('id') groupId: string) {
     return this.balancesService.getOptimizedSettlements(groupId, user.id);
   }
+
+  @Get('me')
+  getMyBalances(@CurrentUser() user: any) {
+    return this.balancesService.getMyBalances(user.id);
+  }
 }
