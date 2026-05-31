@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/theme_provider.dart';
+import 'core/session/session_reset.dart';
+import 'features/auth/presentation/providers/auth_provider.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/storage/secure_local_storage.dart';
@@ -28,11 +30,40 @@ void main() async {
   );
 }
 
-class EvenOutApp extends ConsumerWidget {
+class EvenOutApp extends ConsumerStatefulWidget {
   const EvenOutApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EvenOutApp> createState() => _EvenOutAppState();
+}
+
+class _EvenOutAppState extends ConsumerState<EvenOutApp> {
+  /// Tracks the currently signed-in user so we can detect account switches.
+  String? _lastUserId;
+  bool _seenInitialAuthEvent = false;
+
+  @override
+  Widget build(BuildContext context) {
+    // Whenever the authenticated account changes (sign-out, or login as a
+    // different user — email OR Google), wipe all cached user-scoped data so
+    // the previous account's name / avatar / balances never leak through.
+    ref.listen(authStateProvider, (_, next) {
+      final newUserId = next.value?.session?.user.id;
+
+      // Ignore the first emission (the restored/current session at launch);
+      // there's nothing stale to clear yet.
+      if (!_seenInitialAuthEvent) {
+        _seenInitialAuthEvent = true;
+        _lastUserId = newUserId;
+        return;
+      }
+
+      if (newUserId != _lastUserId) {
+        clearUserScopedProviders(ref);
+        _lastUserId = newUserId;
+      }
+    });
+
     final themeMode = ref.watch(themeModeProvider);
     final router = ref.watch(goRouterProvider);
 

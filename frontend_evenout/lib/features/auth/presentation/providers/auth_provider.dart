@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/storage/secure_local_storage.dart';
 
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
@@ -64,6 +65,10 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
     state = const AsyncLoading();
     try {
       await _supabase.auth.signOut();
+      // Defensively wipe any persisted JWT/session from secure storage so no
+      // token from the previous account is left on the device. Cached user
+      // data in Riverpod is cleared by the auth-state listener in EvenOutApp.
+      await SecureLocalStorage().removePersistedSession();
       state = const AsyncData(null);
     } catch (e, st) {
       state = AsyncError(e, st);
