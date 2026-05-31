@@ -31,6 +31,43 @@ class Group {
   }
 }
 
+/// A single active member of a group, as returned by `GET /groups/:id/members`.
+/// Response shape: `{ role, joined_at, users: { id, display_name, avatar_url } }`
+class GroupMemberUser {
+  final String id;
+  final String? displayName;
+  final String? avatarUrl;
+  final String? role;
+
+  const GroupMemberUser({
+    required this.id,
+    this.displayName,
+    this.avatarUrl,
+    this.role,
+  });
+
+  String get label =>
+      (displayName != null && displayName!.isNotEmpty) ? displayName! : 'User';
+
+  String get initials {
+    final name = label.trim();
+    if (name.isEmpty) return '?';
+    final parts = name.split(RegExp(r'\s+'));
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return (parts.first[0] + parts.last[0]).toUpperCase();
+  }
+
+  factory GroupMemberUser.fromJson(Map<String, dynamic> json) {
+    final user = json['users'] as Map<String, dynamic>? ?? const {};
+    return GroupMemberUser(
+      id: user['id'] as String? ?? '',
+      displayName: user['display_name'] as String?,
+      avatarUrl: user['avatar_url'] as String?,
+      role: json['role'] as String?,
+    );
+  }
+}
+
 class GroupsRepository {
   final Dio _dio = ApiClient.instance;
 
@@ -60,6 +97,17 @@ class GroupsRepository {
   /// POST /groups/:id/members — adds an accepted friend directly to the group.
   Future<void> addMember(String groupId, String userId) async {
     await _dio.post('/groups/$groupId/members', data: {'user_id': userId});
+  }
+
+  /// GET /groups/:id/members — all active members of the group.
+  Future<List<GroupMemberUser>> getGroupMembers(String groupId) async {
+    final res = await _dio.get('/groups/$groupId/members');
+    final data = res.data as List<dynamic>? ?? [];
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(GroupMemberUser.fromJson)
+        .where((m) => m.id.isNotEmpty)
+        .toList();
   }
 
   /// POST /groups/join — joins a group via its 8-character invite code.

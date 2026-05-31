@@ -188,41 +188,57 @@ class HomeScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      child: friends.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                      child: RefreshIndicator(
+                        color: AppColors.primary,
+                        onRefresh: () async {
+                          await ref.refresh(homeDataProvider.future);
+                        },
+                        child: friends.isEmpty
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
                                 children: [
-                                  Icon(Icons.people_outline, size: 48, color: subtextColor),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'No friends yet',
-                                    style: TextStyle(color: subtextColor, fontSize: 16),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Add friends to start splitting expenses',
-                                    style: TextStyle(color: subtextColor, fontSize: 12),
+                                  SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.people_outline, size: 48, color: subtextColor),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'No friends yet',
+                                        style: TextStyle(color: subtextColor, fontSize: 16),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Add friends to start splitting expenses',
+                                        style: TextStyle(color: subtextColor, fontSize: 12),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Pull down to refresh',
+                                        style: TextStyle(color: subtextColor.withOpacity(0.7), fontSize: 11),
+                                      ),
+                                    ],
                                   ),
                                 ],
-                              ),
-                            )
-                          : ClipRRect(
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                              child: ListView.separated(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                itemCount: friends.length,
-                                separatorBuilder: (context, index) => Divider(
-                                  color: isDark ? Colors.white12 : Colors.grey.shade100,
-                                  height: 1,
-                                  indent: 80,
+                              )
+                            : ClipRRect(
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                                child: ListView.separated(
+                                  physics: const AlwaysScrollableScrollPhysics(),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  itemCount: friends.length,
+                                  separatorBuilder: (context, index) => Divider(
+                                    color: isDark ? Colors.white12 : Colors.grey.shade100,
+                                    height: 1,
+                                    indent: 80,
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final friend = friends[index];
+                                    return _buildFriendTile(friend, textColor, subtextColor, isDark, isBalanceVisible);
+                                  },
                                 ),
-                                itemBuilder: (context, index) {
-                                  final friend = friends[index];
-                                  return _buildFriendTile(friend, textColor, subtextColor, isDark, isBalanceVisible);
-                                },
                               ),
-                            ),
+                      ),
                     ),
                   ),
                 ],

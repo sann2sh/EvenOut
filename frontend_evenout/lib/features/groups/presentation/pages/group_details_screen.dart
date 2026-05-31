@@ -456,13 +456,32 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen> with SingleTick
             elevation: 1.5,
           ),
           onPressed: () async {
-            await Navigator.push(
+            final result = await Navigator.push<AddExpenseResult>(
               context,
               MaterialPageRoute(
-                builder: (context) => AddExpenseScreen(initialGroupName: widget.group.name),
+                builder: (context) => AddExpenseScreen(
+                  initialGroupId: widget.group.id,
+                  initialGroupName: widget.group.name,
+                ),
               ),
             );
-            setState(() {}); // Refresh instantly to display newly added expense!
+            // Reflect the newly logged expense instantly in the local list.
+            if (result != null) {
+              setState(() {
+                widget.group.expenses.insert(
+                  0,
+                  GroupExpense(
+                    id: 'new_e_${DateTime.now().millisecondsSinceEpoch}',
+                    title: result.title,
+                    amount: result.amount,
+                    date: 'Just now',
+                    paidBy: result.paidByName,
+                    icon: Icons.receipt_long_rounded,
+                    color: const Color(0xFF429246),
+                  ),
+                );
+              });
+            }
           },
           icon: const Icon(Icons.add_rounded, color: Colors.white),
           label: const Text(
