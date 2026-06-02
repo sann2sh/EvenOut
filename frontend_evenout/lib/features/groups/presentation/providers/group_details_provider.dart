@@ -89,14 +89,10 @@ final groupDetailsProvider = FutureProvider.family<GroupDetailsData, String>((re
 
   // 2. Fetch active members
   List<Map<String, dynamic>> membersList = [];
-  try {
-    final res = await dio.get('/groups/$groupId/members');
-    membersList = List<Map<String, dynamic>>.from(
-      (res.data as List<dynamic>? ?? []).map((e) => e as Map<String, dynamic>),
-    );
-  } catch (e, stack) {
-    print('Failed to fetch group settlements: $e\n$stack');
-  }
+  final res = await dio.get('/groups/$groupId/members');
+  membersList = List<Map<String, dynamic>>.from(
+    (res.data as List<dynamic>? ?? []).map((e) => e as Map<String, dynamic>),
+  );
 
   final membersMap = <String, Map<String, dynamic>>{};
   for (final m in membersList) {
@@ -109,25 +105,21 @@ final groupDetailsProvider = FutureProvider.family<GroupDetailsData, String>((re
 
   // 3. Fetch balances for the group
   final balancesMap = <String, double>{};
-  try {
-    final res = await dio.get('/balances/groups/$groupId');
-    final balancesData = res.data as List<dynamic>? ?? [];
-    for (final b in balancesData) {
-      final data = b as Map<String, dynamic>;
-      final id = data['userId'] as String?;
-      if (id != null) {
-        balancesMap[id] = (data['netBalance'] as num?)?.toDouble() ?? 0.0;
-        // Also capture name/avatar if not in members list (e.g. they left but have balance)
-        if (!membersMap.containsKey(id)) {
-          membersMap[id] = {
-            'id': id,
-            'display_name': data['displayName'],
-          };
-        }
+  final resBalances = await dio.get('/balances/groups/$groupId');
+  final balancesData = resBalances.data as List<dynamic>? ?? [];
+  for (final b in balancesData) {
+    final data = b as Map<String, dynamic>;
+    final id = data['userId'] as String?;
+    if (id != null) {
+      balancesMap[id] = (data['netBalance'] as num?)?.toDouble() ?? 0.0;
+      // Also capture name/avatar if not in members list (e.g. they left but have balance)
+      if (!membersMap.containsKey(id)) {
+        membersMap[id] = {
+          'id': id,
+          'display_name': data['displayName'],
+        };
       }
     }
-  } catch (e, stack) {
-    print('Failed to fetch group settlements: $e\n$stack');
   }
 
   // Build final members list
@@ -166,82 +158,74 @@ final groupDetailsProvider = FutureProvider.family<GroupDetailsData, String>((re
   final settlementsFuture = dio.get('/settlements?groupId=$groupId');
 
   // --- Expenses ---
-  try {
-    final expensesRes = await expensesFuture;
-    final dynamic expRaw = expensesRes.data;
-    final List<dynamic> expensesData = expRaw is List ? expRaw : (expRaw is Map && expRaw['data'] is List ? expRaw['data'] : []);
+  final expensesRes = await expensesFuture;
+  final dynamic expRaw = expensesRes.data;
+  final List<dynamic> expensesData = expRaw is List ? expRaw : (expRaw is Map && expRaw['data'] is List ? expRaw['data'] : []);
 
-    for (final e in expensesData) {
-      try {
-        final data = e as Map<String, dynamic>;
-        final id = data['id']?.toString() ?? '';
-        final amount = (data['total_amount'] as num?)?.toDouble() ?? (data['amount'] as num?)?.toDouble() ?? 0.0;
-        final dateStr = data['expense_date']?.toString() ?? data['created_at']?.toString();
-        final date = dateStr != null ? DateTime.tryParse(dateStr) ?? DateTime.now() : DateTime.now();
+  for (final e in expensesData) {
+    try {
+      final data = e as Map<String, dynamic>;
+      final id = data['id']?.toString() ?? '';
+      final amount = (data['total_amount'] as num?)?.toDouble() ?? (data['amount'] as num?)?.toDouble() ?? 0.0;
+      final dateStr = data['expense_date']?.toString() ?? data['created_at']?.toString();
+      final date = dateStr != null ? DateTime.tryParse(dateStr) ?? DateTime.now() : DateTime.now();
 
-        final paidById = data['paid_by']?.toString() ?? data['payer_id']?.toString() ?? '';
-        final paidByName = membersMap[paidById]?['display_name'] as String? ?? membersMap[paidById]?['name'] as String? ?? 'Someone';
+      final paidById = data['paid_by']?.toString() ?? data['payer_id']?.toString() ?? '';
+      final paidByName = membersMap[paidById]?['display_name'] as String? ?? membersMap[paidById]?['name'] as String? ?? 'Someone';
 
-        transactions.add(ExpenseTimelineItem(
-          id: id,
-          date: date,
-          title: data['title']?.toString() ?? data['description']?.toString() ?? 'Expense',
-          amount: amount,
-          paidByUserId: paidById,
-          paidByName: paidById == currentUserId ? 'You' : paidByName,
-        ));
+      transactions.add(ExpenseTimelineItem(
+        id: id,
+        date: date,
+        title: data['title']?.toString() ?? data['description']?.toString() ?? 'Expense',
+        amount: amount,
+        paidByUserId: paidById,
+        paidByName: paidById == currentUserId ? 'You' : paidByName,
+      ));
 
-        totalSpend += amount;
-      } catch (err) {
-        print('Error parsing single expense: $err');
-      }
+      totalSpend += amount;
+    } catch (err) {
+      print('Error parsing single expense: $err');
     }
-  } catch (err, stack) {
-    print('Error fetching group expenses: $err\n$stack');
   }
 
   // --- Settlements ---
-  try {
-    final settlementsRes = await settlementsFuture;
-    final dynamic setRaw = settlementsRes.data;
-    final List<dynamic> settlementsData = setRaw is List ? setRaw : (setRaw is Map && setRaw['data'] is List ? setRaw['data'] : []);
+  final settlementsRes = await settlementsFuture;
+  final dynamic setRaw = settlementsRes.data;
+  final List<dynamic> settlementsData = setRaw is List ? setRaw : (setRaw is Map && setRaw['data'] is List ? setRaw['data'] : []);
 
-    for (final s in settlementsData) {
-      try {
-        final data = s as Map<String, dynamic>;
-        final id = data['id']?.toString() ?? '';
-        final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
-        final dateStr = data['confirmed_at']?.toString() ?? data['created_at']?.toString();
-        final date = dateStr != null ? DateTime.tryParse(dateStr) ?? DateTime.now() : DateTime.now();
+  for (final s in settlementsData) {
+    try {
+      final data = s as Map<String, dynamic>;
+      final id = data['id']?.toString() ?? '';
+      final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+      final dateStr = data['confirmed_at']?.toString() ?? data['created_at']?.toString();
+      final date = dateStr != null ? DateTime.tryParse(dateStr) ?? DateTime.now() : DateTime.now();
 
-        // The settlements endpoint embeds the related user objects
-        // (payer:users!payer_id / payee:users!payee_id), so prefer those names
-        // and fall back to the members map for users who have since left.
-        final payerObj = data['payer'] as Map<String, dynamic>?;
-        final payeeObj = data['payee'] as Map<String, dynamic>?;
+      // The settlements endpoint embeds the related user objects
+      // (payer:users!payer_id / payee:users!payee_id), so prefer those names
+      // and fall back to the members map for users who have since left.
+      final payerObj = data['payer'] as Map<String, dynamic>?;
+      final payeeObj = data['payee'] as Map<String, dynamic>?;
 
-        final payerId = data['payer_id']?.toString() ?? payerObj?['id']?.toString() ?? '';
-        final payerName = payerObj?['display_name'] as String? ?? membersMap[payerId]?['display_name'] as String? ?? membersMap[payerId]?['name'] as String? ?? 'Someone';
+      final payerId = data['payer_id']?.toString() ?? payerObj?['id']?.toString() ?? '';
+      final payerName = payerObj?['display_name'] as String? ?? membersMap[payerId]?['display_name'] as String? ?? membersMap[payerId]?['name'] as String? ?? 'Someone';
 
-        final payeeId = data['payee_id']?.toString() ?? payeeObj?['id']?.toString() ?? '';
-        final payeeName = payeeObj?['display_name'] as String? ?? membersMap[payeeId]?['display_name'] as String? ?? membersMap[payeeId]?['name'] as String? ?? 'Someone';
+      final payeeId = data['payee_id']?.toString() ?? payeeObj?['id']?.toString() ?? '';
+      final payeeName = payeeObj?['display_name'] as String? ?? membersMap[payeeId]?['display_name'] as String? ?? membersMap[payeeId]?['name'] as String? ?? 'Someone';
 
-        transactions.add(SettlementTimelineItem(
-          id: id,
-          date: date,
-          amount: amount,
-          payerId: payerId,
-          payerName: payerId == currentUserId ? 'You' : payerName,
-          payeeId: payeeId,
-          payeeName: payeeId == currentUserId ? 'You' : payeeName,
-          status: data['status']?.toString() ?? 'pending',
-        ));
-      } catch (err) {
-        print('Error parsing single settlement: $err');
-      }
+      transactions.add(SettlementTimelineItem(
+        id: id,
+        date: date,
+        amount: amount,
+        payerId: payerId,
+        payerName: payerId == currentUserId ? 'You' : payerName,
+        payeeId: payeeId,
+        payeeName: payeeId == currentUserId ? 'You' : payeeName,
+        status: data['status']?.toString() ?? 'pending',
+      ));
+    } catch (err) {
+      print('Error parsing single settlement: $err');
     }
-  } catch (err, stack) {
-    print('Error fetching group settlements: $err\n$stack');
   }
 
   // Sort transactions by date descending (newest first)
