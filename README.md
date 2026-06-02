@@ -2,6 +2,18 @@
 
 EvenOut is a smart group expense management application designed to eliminate the friction of shared expenses. Targeted for eSewa users in Nepal, it handles expense logging, scanning, splitting, tracking, and settling debts—with gamification built in to encourage fast repayments.
 
+## 📱 App Previews
+
+<div align="center">
+  <img src="frontend_evenout/UI_screenshots/Light/Home.png" width="200" alt="Home Light" />
+  <img src="frontend_evenout/UI_screenshots/Dark/Home.png" width="200" alt="Home Dark" />
+  <img src="frontend_evenout/UI_screenshots/Light/GROUPS%20.png" width="200" alt="Groups Light" />
+  <img src="frontend_evenout/UI_screenshots/Dark/Login%20Page.png" width="200" alt="Login Dark" />
+  <img src="frontend_evenout/UI_screenshots/Light/Screenshot%202026-06-03%20004846.png" width="200" />
+  <br/>
+  <em>See the <a href="frontend_evenout/README.md">Frontend UI Gallery</a> for all screenshots, including the Chaos Roulette Spin Wheel and OCR scanning.</em>
+</div>
+
 ## 🏗️ Architecture & Technology Stack
 
 The project utilizes a strict monorepo architecture for synchronized models, types, and rapid deployment.
