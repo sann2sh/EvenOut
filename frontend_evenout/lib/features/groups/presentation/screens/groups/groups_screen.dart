@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/groups_repository.dart';
-import '../providers/groups_provider.dart';
-import 'group_details_screen.dart';
-import 'create_group_screen.dart';
-import 'join_group_screen.dart';
+import 'package:frontend_evenout/features/groups/data/groups_repository.dart';
+import 'package:frontend_evenout/features/groups/presentation/providers/groups_provider.dart';
+import '../group_details/group_details_screen.dart';
+import '../create_group/create_group_screen.dart';
+import '../join_group/join_group_screen.dart';
 
 class GroupsScreen extends ConsumerStatefulWidget {
   const GroupsScreen({super.key});

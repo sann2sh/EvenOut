@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
-import 'package:frontend_evenout/features/expenses/presentation/pages/add_expense_screen.dart';
-import '../../../groups/presentation/pages/groups_screen.dart';
+import 'package:frontend_evenout/features/expenses/presentation/screens/add_expense/add_expense_screen.dart';
+import '../../../groups/presentation/screens/groups/groups_screen.dart';
 import '../../../account/presentation/pages/account_screen.dart';
 import 'home_screen.dart';
 

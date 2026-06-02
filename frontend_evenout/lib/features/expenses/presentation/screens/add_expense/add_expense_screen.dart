@@ -2,16 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../dashboard/presentation/providers/home_provider.dart';
-import '../../../groups/data/groups_repository.dart';
-import '../../../groups/presentation/providers/groups_provider.dart';
-import '../../../user/data/user_repository.dart';
-import '../../../user/presentation/providers/user_provider.dart';
-import '../../../user/presentation/providers/friends_provider.dart';
-import '../../data/expenses_repository.dart';
-import '../providers/expense_providers.dart';
-import 'chaos_roulette_screen.dart';
+import 'package:frontend_evenout/core/theme/app_colors.dart';
+import 'package:frontend_evenout/features/dashboard/presentation/providers/home_provider.dart';
+import 'package:frontend_evenout/features/groups/data/groups_repository.dart';
+import 'package:frontend_evenout/features/groups/presentation/providers/groups_provider.dart';
+import 'package:frontend_evenout/features/user/data/user_repository.dart';
+import 'package:frontend_evenout/features/user/presentation/providers/user_provider.dart';
+import 'package:frontend_evenout/features/user/presentation/providers/friends_provider.dart';
+import 'package:frontend_evenout/features/expenses/data/expenses_repository.dart';
+import 'package:frontend_evenout/features/expenses/presentation/providers/expense_providers.dart';
+import '../chaos_roulette/chaos_roulette_screen.dart';
+import 'widgets/target_selector.dart';
+import 'widgets/amount_field.dart';
+import 'widgets/split_mode_selector.dart';
+import 'widgets/remaining_banner.dart';
+import 'widgets/participant_tile.dart';
+import 'models/expense_participant.dart';
 
 /// Returned to the caller when an expense is saved, so a group screen can show
 /// the new entry immediately without a round-trip.
@@ -26,19 +32,7 @@ class AddExpenseResult {
   });
 }
 
-/// A single person an expense can be split between.
-class _Participant {
-  final String id;
-  final String name;
-  final String? avatarUrl;
-  final bool isMe;
-  const _Participant({
-    required this.id,
-    required this.name,
-    this.avatarUrl,
-    required this.isMe,
-  });
-}
+
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   /// When launched from a group ("Add Group Expense") the expense is pre-scoped
@@ -118,11 +112,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   // --- Participants ---------------------------------------------------------
 
-  List<_Participant> _participants(UserModel me, List<GroupMemberUser>? members) {
+  List<ExpenseParticipant> ExpenseParticipants(UserModel me, List<GroupMemberUser>? members) {
     if (_mode == 'group') {
       final ms = members ?? const <GroupMemberUser>[];
       var parts = ms
-          .map((m) => _Participant(
+          .map((m) => ExpenseParticipant(
                 id: m.id,
                 name: m.id == me.id ? 'You' : m.label,
                 avatarUrl: m.avatarUrl,
@@ -132,17 +126,17 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       if (!parts.any((p) => p.isMe)) {
         parts.insert(
           0,
-          _Participant(id: me.id, name: 'You', avatarUrl: me.avatarUrl, isMe: true),
+          ExpenseParticipant(id: me.id, name: 'You', avatarUrl: me.avatarUrl, isMe: true),
         );
       }
       return parts.where((p) => p.isMe || !_excludedIds.contains(p.id)).toList();
     }
 
-    final parts = <_Participant>[
-      _Participant(id: me.id, name: 'You', avatarUrl: me.avatarUrl, isMe: true),
+    final parts = <ExpenseParticipant>[
+      ExpenseParticipant(id: me.id, name: 'You', avatarUrl: me.avatarUrl, isMe: true),
     ];
     if (_friend != null) {
-      parts.add(_Participant(
+      parts.add(ExpenseParticipant(
         id: _friend!.id,
         name: _friend!.label,
         avatarUrl: _friend!.avatarUrl,
@@ -186,7 +180,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     });
   }
 
-  Future<void> _openChaos(List<_Participant> parts) async {
+  Future<void> _openChaos(List<ExpenseParticipant> parts) async {
     if (_amount < 0.01) {
       _snack('Enter an amount before spinning');
       return;
@@ -210,7 +204,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
   }
 
-  Future<void> _save(List<_Participant> parts) async {
+  Future<void> _save(List<ExpenseParticipant> parts) async {
     final desc = _descCtrl.text.trim();
     final amount = _amount;
 
@@ -356,7 +350,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final textColor = isDark ? Colors.white : const Color(0xFF1B1B3A);
     final subtextColor = isDark ? Colors.white60 : Colors.black54;
 
-    final parts = _participants(me, members);
+    final parts = ExpenseParticipants(me, members);
 
     return Scaffold(
       backgroundColor: bg,
@@ -379,9 +373,24 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
           children: [
-            _targetSelector(isDark, cardColor, textColor, subtextColor),
+            TargetSelector(
+              mode: _mode,
+              groupId: _groupId,
+              groupName: _groupName,
+              friend: _friend,
+              onTap: _openTargetSelector,
+              isDark: isDark,
+              cardColor: cardColor,
+              textColor: textColor,
+              subtextColor: subtextColor,
+            ),
             const SizedBox(height: 16),
-            _amountField(isDark, cardColor, textColor, subtextColor),
+            AmountField(
+              controller: _amountCtrl,
+              cardColor: cardColor,
+              textColor: textColor,
+              subtextColor: subtextColor,
+            ),
             const SizedBox(height: 14),
             _textCard(
               controller: _descCtrl,
@@ -403,7 +412,19 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             const SizedBox(height: 20),
             _sectionLabel('How to split', textColor),
             const SizedBox(height: 10),
-            _splitModeSelector(isDark, cardColor, textColor, subtextColor),
+            SplitModeSelector(
+              currentMode: _splitMode,
+              onModeChanged: (mode) {
+                setState(() {
+                  _splitMode = mode;
+                  if (mode != 'chaos_roulette') _chaosResult = null;
+                });
+              },
+              isDark: isDark,
+              cardColor: cardColor,
+              textColor: textColor,
+              subtextColor: subtextColor,
+            ),
             const SizedBox(height: 20),
             _sectionLabel('Split between', textColor),
             const SizedBox(height: 10),
@@ -414,7 +435,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               _infoCard('Could not load members: ${expenseErrorMessage(membersError)}',
                   cardColor, subtextColor)
             else
-              _participantsSection(
+              ExpenseParticipantsSection(
                   parts, me, members, isDark, cardColor, textColor, subtextColor),
           ],
         ),
@@ -432,108 +453,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 fontSize: 15, fontWeight: FontWeight.bold, color: textColor)),
       );
 
-  Widget _targetSelector(
-      bool isDark, Color cardColor, Color textColor, Color subtextColor) {
-    final bool hasTarget = _mode == 'group' ? _groupId != null : _friend != null;
-    final String title = _mode == 'group'
-        ? (_groupName ?? 'Select a group')
-        : (_friend?.label ?? 'Select a friend');
-    final String subtitle = _mode == 'group'
-        ? 'Group expense • Paid by you'
-        : (_friend == null ? 'Tap to choose' : 'Peer to peer • Paid by you');
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: _openTargetSelector,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-              color: hasTarget
-                  ? AppColors.primary.withOpacity(0.4)
-                  : (isDark ? Colors.white12 : Colors.grey.shade200),
-              width: 1.4),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                _mode == 'group' ? Icons.groups_rounded : Icons.person_rounded,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('You & $title',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: textColor)),
-                  const SizedBox(height: 2),
-                  Text(subtitle,
-                      style: TextStyle(fontSize: 12, color: subtextColor)),
-                ],
-              ),
-            ),
-            Icon(Icons.unfold_more_rounded, color: subtextColor, size: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _amountField(
-      bool isDark, Color cardColor, Color textColor, Color subtextColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Text('Rs',
-              style: TextStyle(
-                  fontSize: 22, fontWeight: FontWeight.bold, color: subtextColor)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: _amountCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-              ],
-              style: TextStyle(
-                  fontSize: 30, fontWeight: FontWeight.bold, color: textColor),
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                isDense: true,
-                hintText: '0.00',
-                hintStyle: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                    color: subtextColor.withOpacity(0.4)),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _textCard({
     required TextEditingController controller,
@@ -644,8 +564,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     );
   }
 
-  Widget _participantsSection(
-    List<_Participant> parts,
+  Widget ExpenseParticipantsSection(
+    List<ExpenseParticipant> parts,
     UserModel me,
     List<GroupMemberUser>? members,
     bool isDark,
@@ -673,17 +593,38 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final children = <Widget>[];
 
     // Live "remaining" banner for exact / percentage.
-    final banner = _remainingBanner(parts);
-    if (banner != null) {
-      children.add(banner);
-      children.add(const SizedBox(height: 10));
-    }
+    children.add(RemainingBanner(
+      splitMode: _splitMode,
+      amount: _amount,
+      parts: parts,
+      exactCtrls: _exactCtrls,
+      pctCtrls: _pctCtrls,
+    ));
+    children.add(const SizedBox(height: 10));
 
     for (final p in parts) {
-      children.add(_participantTile(p, cardColor, textColor, subtextColor, isDark,
-          canToggle: _mode == 'group' && !p.isMe,
+      children.add(ParticipantTile(
+        participant: p,
+        isDark: isDark,
+        cardColor: cardColor,
+        textColor: textColor,
+        subtextColor: subtextColor,
+        canToggle: _mode == 'group' && !p.isMe,
+        included: true,
+        onToggle: () => setState(() {
+          _excludedIds.add(p.id);
+          _chaosResult = null;
+        }),
+        avatar: _avatar(p, 16),
+        trailing: _buildParticipantTrailing(
+          p,
+          textColor,
+          subtextColor,
+          isDark,
           included: true,
-          participantCount: parts.length));
+          participantCount: parts.length,
+        ),
+      ));
       children.add(const SizedBox(height: 8));
     }
 
@@ -692,10 +633,30 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       for (final m in allGroupMembers) {
         if (m.id == me.id) continue;
         if (!_excludedIds.contains(m.id)) continue;
-        final p = _Participant(
+        final p = ExpenseParticipant(
             id: m.id, name: m.label, avatarUrl: m.avatarUrl, isMe: false);
-        children.add(_participantTile(p, cardColor, textColor, subtextColor, isDark,
-            canToggle: true, included: false, participantCount: parts.length));
+        children.add(ParticipantTile(
+          participant: p,
+          isDark: isDark,
+          cardColor: cardColor,
+          textColor: textColor,
+          subtextColor: subtextColor,
+          canToggle: true,
+          included: false,
+          onToggle: () => setState(() {
+            _excludedIds.remove(p.id);
+            _chaosResult = null;
+          }),
+          avatar: _avatar(p, 16),
+          trailing: _buildParticipantTrailing(
+            p,
+            textColor,
+            subtextColor,
+            isDark,
+            included: false,
+            participantCount: parts.length,
+          ),
+        ));
         children.add(const SizedBox(height: 8));
       }
     }
@@ -703,171 +664,46 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     return Column(children: children);
   }
 
-  Widget? _remainingBanner(List<_Participant> parts) {
-    if (_splitMode == 'exact') {
-      double sum = 0;
-      for (final p in parts) {
-        sum += double.tryParse(_inputCtrl(_exactCtrls, p.id).text.trim()) ?? 0;
-      }
-      final left = _amount - sum;
-      final ok = left.abs() <= 0.01;
-      return _bannerBox(
-        ok
-            ? 'All set — amounts add up to Rs ${_amount.toStringAsFixed(2)}'
-            : left > 0
-                ? 'Rs ${left.toStringAsFixed(2)} left to assign'
-                : 'Over by Rs ${(-left).toStringAsFixed(2)}',
-        ok,
-      );
-    }
-    if (_splitMode == 'percentage') {
-      double sum = 0;
-      for (final p in parts) {
-        sum += double.tryParse(_inputCtrl(_pctCtrls, p.id).text.trim()) ?? 0;
-      }
-      final left = 100 - sum;
-      final ok = left.abs() <= 0.01;
-      return _bannerBox(
-        ok
-            ? 'All set — percentages total 100%'
-            : left > 0
-                ? '${left.toStringAsFixed(1)}% left to assign'
-                : 'Over by ${(-left).toStringAsFixed(1)}%',
-        ok,
-      );
-    }
-    if (_splitMode == 'equal' && parts.isNotEmpty) {
-      final each = _amount / parts.length;
-      return _bannerBox(
-          'Rs ${each.toStringAsFixed(2)} each • ${parts.length} people', true,
-          neutral: true);
-    }
-    return null;
-  }
 
-  Widget _bannerBox(String text, bool ok, {bool neutral = false}) {
-    final color = neutral
-        ? AppColors.primary
-        : ok
-            ? AppColors.settle
-            : AppColors.owe;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(neutral ? Icons.info_outline_rounded : (ok ? Icons.check_circle_rounded : Icons.error_outline_rounded),
-              size: 16, color: color),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(text,
-                style: TextStyle(
-                    fontSize: 12.5, fontWeight: FontWeight.w600, color: color)),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _participantTile(
-    _Participant p,
-    Color cardColor,
+  Widget _buildParticipantTrailing(
+    ExpenseParticipant p,
     Color textColor,
     Color subtextColor,
     bool isDark, {
-    required bool canToggle,
     required bool included,
     required int participantCount,
   }) {
-    Widget trailing;
     if (!included) {
-      trailing = TextButton(
+      return TextButton(
         onPressed: () => setState(() {
           _excludedIds.remove(p.id);
           _chaosResult = null;
         }),
         child: const Text('Add'),
       );
-    } else {
-      switch (_splitMode) {
-        case 'exact':
-          trailing = _miniInput(_inputCtrl(_exactCtrls, p.id), 'Rs', textColor,
-              subtextColor, isDark);
-          break;
-        case 'percentage':
-          final pct = double.tryParse(_inputCtrl(_pctCtrls, p.id).text.trim()) ?? 0;
-          final amt = _amount * pct / 100;
-          trailing = Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Rs ${amt.toStringAsFixed(0)}',
-                  style: TextStyle(fontSize: 11, color: subtextColor)),
-              const SizedBox(width: 6),
-              _miniInput(_inputCtrl(_pctCtrls, p.id), '%', textColor,
-                  subtextColor, isDark),
-            ],
-          );
-          break;
-        case 'equal':
-        default:
-          final each =
-              (_amount > 0 && participantCount > 0) ? _amount / participantCount : 0;
-          trailing = Text('Rs ${each.toStringAsFixed(2)}',
-              style: TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.bold, color: textColor));
-      }
     }
 
-    return Opacity(
-      opacity: included ? 1 : 0.5,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
+    switch (_splitMode) {
+      case 'exact':
+        return _miniInput(_inputCtrl(_exactCtrls, p.id), 'Rs', textColor, subtextColor, isDark);
+      case 'percentage':
+        final pct = double.tryParse(_inputCtrl(_pctCtrls, p.id).text.trim()) ?? 0;
+        final amt = _amount * pct / 100;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (canToggle)
-              GestureDetector(
-                onTap: () => setState(() {
-                  if (included) {
-                    _excludedIds.add(p.id);
-                  } else {
-                    _excludedIds.remove(p.id);
-                  }
-                  _chaosResult = null;
-                }),
-                child: Icon(
-                  included
-                      ? Icons.check_circle_rounded
-                      : Icons.radio_button_unchecked_rounded,
-                  color: included ? AppColors.primary : subtextColor,
-                  size: 22,
-                ),
-              ),
-            if (canToggle) const SizedBox(width: 10),
-            _avatar(p, 16),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(p.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: textColor)),
-            ),
-            trailing,
+            Text('Rs ${amt.toStringAsFixed(0)}', style: TextStyle(fontSize: 11, color: subtextColor)),
+            const SizedBox(width: 6),
+            _miniInput(_inputCtrl(_pctCtrls, p.id), '%', textColor, subtextColor, isDark),
           ],
-        ),
-      ),
-    );
+        );
+      case 'equal':
+      default:
+        final each = (_amount > 0 && participantCount > 0) ? _amount / participantCount : 0;
+        return Text('Rs ${each.toStringAsFixed(2)}',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor));
+    }
   }
 
   Widget _miniInput(TextEditingController ctrl, String suffix, Color textColor,
@@ -900,7 +736,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     );
   }
 
-  Widget _chaosSection(List<_Participant> parts, Color cardColor,
+  Widget _chaosSection(List<ExpenseParticipant> parts, Color cardColor,
       Color textColor, Color subtextColor) {
     final res = _chaosResult;
     final hasResult =
@@ -981,7 +817,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     );
   }
 
-  Widget _avatar(_Participant p, double radius) {
+  Widget _avatar(ExpenseParticipant p, double radius) {
     final hasImg = p.avatarUrl != null && p.avatarUrl!.isNotEmpty;
     return CircleAvatar(
       radius: radius,
@@ -999,7 +835,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     );
   }
 
-  Widget _saveBar(List<_Participant> parts, Color cardColor, bool isDark) {
+  Widget _saveBar(List<ExpenseParticipant> parts, Color cardColor, bool isDark) {
     return Container(
       padding: EdgeInsets.fromLTRB(
           20, 12, 20, 12 + MediaQuery.of(context).padding.bottom),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/groups_repository.dart';
-import '../providers/groups_provider.dart';
-import '../../../user/presentation/providers/friends_provider.dart';
+import 'package:frontend_evenout/features/groups/data/groups_repository.dart';
+import 'package:frontend_evenout/features/groups/presentation/providers/groups_provider.dart';
+import 'package:frontend_evenout/features/user/presentation/providers/friends_provider.dart';
 
 class CreateGroupScreen extends ConsumerStatefulWidget {
   const CreateGroupScreen({super.key});
