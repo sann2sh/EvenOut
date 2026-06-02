@@ -1,2 +1,10 @@
-backend-evenout/client_secret_186089280848-3ocout6u9ps4916vcd3ing800ll5s7c3.apps.googleusercontent.com.json
-backend-evenout/firebase-service-account.json
+# Global Secrets & Configs
+**/*.env
+**/*service-account*.json
+**/google-services.json
+**/client_secret_*.json
+
+# Hackathon Dev Notes
+**/initial_implementation_plan.md
+**/design.md
+**/fcm_frontend_setup.md
