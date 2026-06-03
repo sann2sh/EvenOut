@@ -270,7 +270,7 @@ export class ExpensesService {
         .select('*, expense_splits(*)')
         .eq('group_id', groupId)
         .eq('is_deleted', false)
-        .order('created_at', { ascending: false });
+        .order('synced_at', { ascending: false });
 
       if (error) {
         throw new InternalServerErrorException(error.message);
@@ -325,7 +325,7 @@ export class ExpensesService {
         .is('group_id', null)
         .eq('is_deleted', false)
         .in('id', Array.from(expenseIds))
-        .order('created_at', { ascending: false });
+        .order('synced_at', { ascending: false });
 
       if (error) {
         throw new InternalServerErrorException(error.message);

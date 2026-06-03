@@ -83,8 +83,7 @@ export class SettlementsService {
         .from('settlements')
         .select('*, payer:users!payer_id(id, display_name), payee:users!payee_id(id, display_name)')
         .eq('group_id', groupId)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: false });
+        .order('synced_at', { ascending: false });
 
       if (error) {
         throw new InternalServerErrorException(error.message);
@@ -97,7 +96,7 @@ export class SettlementsService {
         .select('*, payer:users!payer_id(id, display_name), payee:users!payee_id(id, display_name)')
         .is('group_id', null)
         .or(`payer_id.eq.${userId},payee_id.eq.${userId}`)
-        .order('created_at', { ascending: false });
+        .order('synced_at', { ascending: false });
 
       if (error) {
         throw new InternalServerErrorException(error.message);
