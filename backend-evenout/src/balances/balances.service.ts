@@ -97,6 +97,95 @@ export class BalancesService {
     return result;
   }
 
+  async getUnoptimizedSettlements(groupId: string, userId: string): Promise<OptimizedDebt[]> {
+    const client = this.supabaseService.getAdmin();
+
+    // Verify user is in group
+    const { data: member, error: memberError } = await client
+      .from('group_members')
+      .select('id')
+      .eq('group_id', groupId)
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .single();
+
+    if (memberError || !member) {
+      throw new BadRequestException('You are not an active member of this group');
+    }
+
+    // Fetch from peer_balances view
+    const { data: rawBalances, error } = await client
+      .from('peer_balances')
+      .select('*')
+      .eq('group_id', groupId);
+
+    if (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+
+    // Aggregate pairwise net balances to avoid A->B and B->A duplicates
+    const pairwiseMap = new Map<string, number>();
+
+    for (const row of rawBalances) {
+      if (row.user_id === row.counterpart_id) continue;
+      
+      const amount = parseFloat(row.net_debt);
+      // Ensure consistent key ordering so A->B and B->A map to the same key
+      const isUserFirst = row.user_id < row.counterpart_id;
+      const key = isUserFirst ? `${row.user_id}_${row.counterpart_id}` : `${row.counterpart_id}_${row.user_id}`;
+      
+      // If user_id is the payer (amount > 0), they owe counterpart_id.
+      // If isUserFirst, A owes B. We add amount.
+      // If !isUserFirst, B owes A. We subtract amount.
+      const currentNet = pairwiseMap.get(key) || 0;
+      pairwiseMap.set(key, currentNet + (isUserFirst ? amount : -amount));
+    }
+
+    const userIds = new Set<string>();
+    for (const key of pairwiseMap.keys()) {
+      const [u1, u2] = key.split('_');
+      userIds.add(u1);
+      userIds.add(u2);
+    }
+
+    if (userIds.size === 0) {
+      return [];
+    }
+
+    const { data: users, error: userError } = await client
+      .from('users')
+      .select('id, display_name')
+      .in('id', Array.from(userIds));
+
+    if (userError) {
+      throw new InternalServerErrorException(userError.message);
+    }
+
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const unoptimizedSettlements: OptimizedDebt[] = [];
+
+    for (const [key, netAmount] of pairwiseMap.entries()) {
+      if (Math.abs(netAmount) < 0.01) continue;
+
+      const [u1, u2] = key.split('_');
+      // If netAmount > 0, u1 owes u2.
+      // If netAmount < 0, u2 owes u1.
+      const payerId = netAmount > 0 ? u1 : u2;
+      const payeeId = netAmount > 0 ? u2 : u1;
+
+      unoptimizedSettlements.push({
+        payerId,
+        payerName: userMap.get(payerId)?.display_name,
+        payeeId,
+        payeeName: userMap.get(payeeId)?.display_name,
+        amount: parseFloat(Math.abs(netAmount).toFixed(2)),
+      });
+    }
+
+    // Sort by amount descending
+    return unoptimizedSettlements.sort((a, b) => b.amount - a.amount);
+  }
+
   async getOptimizedSettlements(groupId: string, userId: string): Promise<OptimizedDebt[]> {
     const balances = await this.getGroupBalances(groupId, userId);
 

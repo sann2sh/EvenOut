@@ -268,6 +268,22 @@ Header: `Authorization: Bearer <your_jwt_access_token>`
   ]
   ```
 
+### Get Raw Settlements (Unoptimized)
+- **URL:** `GET /balances/groups/:id/raw`
+- **Function:** Returns the raw, unoptimized list of exactly who owes whom within the group based on actual expenses before any debt simplification algorithm is applied.
+- **Response:**
+  ```json
+  [
+    {
+      "payerId": "uuid-1",
+      "payerName": "Alice",
+      "payeeId": "uuid-2",
+      "payeeName": "Bob",
+      "amount": 250
+    }
+  ]
+  ```
+
 ### Get Optimized Settlements (Greedy Algorithm)
 - **URL:** `GET /balances/groups/:id/optimized`
 - **Function:** Runs the greedy algorithm to determine exactly who should pay whom to settle all debts with the minimum number of transactions.

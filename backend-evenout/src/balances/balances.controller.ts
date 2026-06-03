@@ -11,6 +11,11 @@ export class BalancesController {
     return this.balancesService.getGroupBalances(groupId, user.id);
   }
 
+  @Get('groups/:id/raw')
+  getUnoptimizedSettlements(@CurrentUser() user: any, @Param('id') groupId: string) {
+    return this.balancesService.getUnoptimizedSettlements(groupId, user.id);
+  }
+
   @Get('groups/:id/optimized')
   getOptimizedSettlements(@CurrentUser() user: any, @Param('id') groupId: string) {
     return this.balancesService.getOptimizedSettlements(groupId, user.id);
