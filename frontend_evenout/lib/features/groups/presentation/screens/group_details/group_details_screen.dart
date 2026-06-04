@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend_evenout/features/groups/data/groups_repository.dart';
 import 'package:frontend_evenout/features/groups/presentation/providers/group_details_provider.dart';
 import 'package:frontend_evenout/features/expenses/presentation/screens/add_expense/add_expense_screen.dart';
-import '../esewa_payment/esewa_payment_screen.dart';
+import 'package:frontend_evenout/features/expenses/data/settlements_repository.dart';
 import 'widgets/group_hero_header.dart';
 import 'widgets/group_stats_grid.dart';
 
@@ -30,6 +30,44 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> with Si
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Widget _buildErrorState(Object err, Color textColor, Color subtextColor, Color brandGreen) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.wifi_off_rounded, color: Colors.redAccent, size: 48),
+          const SizedBox(height: 16),
+          Text(
+            'Failed to load data',
+            style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+            child: Text(
+              'Please check your connection and try again.',
+              style: TextStyle(color: subtextColor, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              ref.invalidate(groupDetailsProvider(widget.group.id));
+            },
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
+            label: const Text('RETRY', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: brandGreen,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -112,7 +150,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> with Si
                 // TAB 1: Transactions Log
                 detailsAsync.when(
                   loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(child: Text('Error: $err')),
+                  error: (err, stack) => _buildErrorState(err, textColor, subtextColor, brandGreen),
                   data: (data) {
                     if (data.transactions.isEmpty) {
                       return Center(
@@ -256,7 +294,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> with Si
                 // TAB 2: Members
                 detailsAsync.when(
                   loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(child: Text('Error: $err')),
+                  error: (err, stack) => _buildErrorState(err, textColor, subtextColor, brandGreen),
                   data: (data) {
                     return ListView(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
@@ -278,73 +316,106 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> with Si
                                 ),
                               ],
                             ),
-                            child: Row(
+                            child: Column(
                               children: [
-                                CircleAvatar(
-                                  radius: 18,
-                                  backgroundColor: brandGreen.withOpacity(0.1),
-                                  backgroundImage: member.avatarUrl != null ? NetworkImage(member.avatarUrl!) : null,
-                                  child: member.avatarUrl == null ? Text(
-                                    member.name.substring(0, 1).toUpperCase(),
-                                    style: TextStyle(color: brandGreen, fontWeight: FontWeight.bold, fontSize: 13),
-                                  ) : null,
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Text(
-                                    member.name,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: textColor,
-                                    ),
-                                  ),
-                                ),
                                 Row(
                                   children: [
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          memBal > 0 
-                                              ? 'Owed \$${memBal.toStringAsFixed(2)}'
-                                              : memBal < 0
-                                                  ? 'Owes \$${memBal.abs().toStringAsFixed(2)}'
-                                                  : 'Settled',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            color: memBal > 0 
-                                                ? const Color(0xFF2E7D32) 
-                                                : memBal < 0
-                                                    ? const Color(0xFFC62828)
-                                                    : subtextColor,
-                                          ),
-                                        ),
-                                      ],
+                                    CircleAvatar(
+                                      radius: 18,
+                                      backgroundColor: brandGreen.withOpacity(0.1),
+                                      backgroundImage: member.avatarUrl != null ? NetworkImage(member.avatarUrl!) : null,
+                                      child: member.avatarUrl == null ? Text(
+                                        member.name.substring(0, 1).toUpperCase(),
+                                        style: TextStyle(color: brandGreen, fontWeight: FontWeight.bold, fontSize: 13),
+                                      ) : null,
                                     ),
-                                    if (member.id != data.currentUserId && memBal < 0) ...[
-                                      const SizedBox(width: 12),
-                                      ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: brandGreen,
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                          minimumSize: Size.zero,
-                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                        ),
-                                        onPressed: () => _openSettleDrawer(context, member.id, member.name, memBal.abs(), brandGreen, cardColor, textColor, subtextColor),
-                                        child: const Text(
-                                          'Settle',
-                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Text(
+                                        member.name,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: textColor,
                                         ),
                                       ),
-                                    ],
+                                    ),
+                                    Row(
+                                      children: [
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              memBal > 0 
+                                                  ? 'Owed \$${memBal.toStringAsFixed(2)}'
+                                                  : memBal < 0
+                                                      ? 'Owes \$${memBal.abs().toStringAsFixed(2)}'
+                                                      : 'Settled',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: memBal > 0 
+                                                    ? const Color(0xFF2E7D32) 
+                                                    : memBal < 0
+                                                        ? const Color(0xFFC62828)
+                                                        : subtextColor,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        if (member.id != data.currentUserId && memBal < 0) ...[
+                                          const SizedBox(width: 12),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: brandGreen,
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                              minimumSize: Size.zero,
+                                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                            onPressed: () => _openSettleDrawer(context, member.id, member.name, memBal.abs(), brandGreen, cardColor, textColor, subtextColor, data.currentUserId),
+                                            child: const Text(
+                                              'Settle',
+                                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                                   ],
                                 ),
+                                if (member.rawDebts.isNotEmpty) ...[
+                                  const SizedBox(height: 10),
+                                  Divider(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[200]),
+                                  const SizedBox(height: 8),
+                                  ...member.rawDebts.map((debt) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 4, bottom: 4, left: 40),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            debt.isOwedToMember 
+                                              ? 'Owed by ${debt.otherUserName}'
+                                              : 'Owes ${debt.otherUserName}',
+                                            style: TextStyle(fontSize: 12, color: subtextColor),
+                                          ),
+                                          Text(
+                                            '\$${debt.amount.toStringAsFixed(2)}',
+                                            style: TextStyle(
+                                              fontSize: 12, 
+                                              fontWeight: FontWeight.bold,
+                                              color: debt.isOwedToMember ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }),
+                                ],
                               ],
                             ),
                           );
@@ -396,7 +467,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> with Si
   }
 
   // 1. Invite QR Drawer Generator Modal
-  // 2. Interactive Settle Up eSewa Simulation Drawer
+  // 2. Interactive Settle Up Drawer (Backend Integration)
   void _openSettleDrawer(
     BuildContext context, 
     String userId,
@@ -406,6 +477,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> with Si
     Color cardColor, 
     Color textColor, 
     Color subtextColor,
+    String currentUserId,
   ) {
     showModalBottomSheet(
       context: context,
@@ -441,7 +513,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> with Si
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: brandGreen.withOpacity(0.1),
-                    child: Icon(Icons.payment_rounded, color: brandGreen, size: 30),
+                    child: Icon(Icons.handshake_rounded, color: brandGreen, size: 30),
                   ),
                   const SizedBox(height: 14),
                   
@@ -451,7 +523,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> with Si
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Simulated Payment Gateway via eSewa Balance',
+                    'Record a cash or external payment',
                     style: TextStyle(fontSize: 12, color: subtextColor),
                   ),
                   const SizedBox(height: 25),
@@ -468,7 +540,7 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> with Si
                     child: Column(
                       children: [
                         const Text(
-                          'AMOUNT TO TRANSFER',
+                          'SETTLEMENT AMOUNT',
                           style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.0, color: Colors.grey),
                         ),
                         const SizedBox(height: 8),
@@ -483,11 +555,11 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> with Si
                   
                   // Action Payment Button
                   _isSettleOpen 
-                      ? const Column(
+                      ? Column(
                           children: [
-                            CircularProgressIndicator(color: Colors.green),
-                            SizedBox(height: 12),
-                            Text('Contacting eSewa secure balance gateway...', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                            CircularProgressIndicator(color: brandGreen),
+                            const SizedBox(height: 12),
+                            const Text('Recording settlement...', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                           ],
                         )
                       : SizedBox(
@@ -495,45 +567,64 @@ class _GroupDetailsScreenState extends ConsumerState<GroupDetailsScreen> with Si
                           height: 54,
                           child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF60BB46), // eSewa signature brand green
+                              backgroundColor: brandGreen,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
-                            onPressed: () {
-                              Navigator.pop(context); // Close sheet
-                              
-                              // Launch secure eSewa mock portal check
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => EsewaPaymentScreen(
-                                    payeeName: name,
-                                    amount: amount,
-                                    onPaymentSuccess: () {
-                                        ref.invalidate(groupDetailsProvider(widget.group.id));
-// Show confirmation SnackBar
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Row(
-                                            children: [
-                                              const Icon(Icons.check_circle_rounded, color: Colors.white),
-                                              const SizedBox(width: 10),
-                                              Text('Settled $name balance successfully via eSewa!'),
-                                            ],
-                                          ),
-                                          backgroundColor: const Color(0xFF2E7D32),
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              );
+                            onPressed: () async {
+                              setDrawerState(() {
+                                _isSettleOpen = true;
+                              });
+
+                              try {
+                                // payer is the member who owes money, payee is the current user receiving it
+                                await ref.read(settlementsRepositoryProvider).createSettlement(
+                                  payerId: userId,
+                                  payeeId: currentUserId,
+                                  amount: amount,
+                                  groupId: widget.group.id,
+                                );
+
+                                if (context.mounted) {
+                                  Navigator.pop(context); // Close sheet
+                                  ref.invalidate(groupDetailsProvider(widget.group.id));
+                                  
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(Icons.check_circle_rounded, color: Colors.white),
+                                          const SizedBox(width: 10),
+                                          Text('Settled \$${amount.toStringAsFixed(2)} with $name!'),
+                                        ],
+                                      ),
+                                      backgroundColor: const Color(0xFF2E7D32),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to record settlement: $e'),
+                                      backgroundColor: Colors.redAccent,
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              } finally {
+                                if (mounted) {
+                                  setDrawerState(() {
+                                    _isSettleOpen = false;
+                                  });
+                                }
+                              }
                             },
-                            icon: const Icon(Icons.payment_rounded, color: Colors.white),
+                            icon: const Icon(Icons.check_circle_outline_rounded, color: Colors.white),
                             label: const Text(
-                              'PAY VIA ESEWA PORTAL (TEST)',
+                              'MARK AS SETTLED',
                               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8),
                             ),
                           ),
