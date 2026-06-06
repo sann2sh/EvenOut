@@ -1,7 +1,14 @@
+import 'dart:convert';
 import 'dart:math';
 
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/offline/offline_database.dart';
+import '../../../core/offline/connectivity_service.dart';
+import 'parsed_receipt.dart';
 
 final Random _uuidRng = Random.secure();
 
@@ -47,13 +54,53 @@ class ExpenseSplitInput {
   }
 }
 
+/// Result of [ExpensesRepository.createExpense] indicating whether the expense
+/// was sent to the backend or saved offline.
+class CreateExpenseResult {
+  final bool savedOffline;
+  const CreateExpenseResult({required this.savedOffline});
+}
+
 class ExpensesRepository {
-  final Dio _dio = ApiClient.instance;
+  final Dio _dio;
+  final OfflineDatabase _offlineDb;
+  final ConnectivityService _connectivity;
+
+  ExpensesRepository({
+    Dio? dio,
+    OfflineDatabase? offlineDb,
+    ConnectivityService? connectivity,
+  })  : _dio = dio ?? ApiClient.instance,
+        _offlineDb = offlineDb ?? OfflineDatabase.instance,
+        _connectivity = connectivity ?? ConnectivityService();
+
+  /// Uploads a receipt image to the 'receipts' Supabase bucket and returns the public URL.
+  Future<String> uploadReceipt(Uint8List imageBytes, String extension) async {
+    final fileName = '${DateTime.now().millisecondsSinceEpoch}.$extension';
+    
+    await Supabase.instance.client.storage
+        .from('receipts')
+        .uploadBinary(fileName, imageBytes);
+        
+    return Supabase.instance.client.storage
+        .from('receipts')
+        .getPublicUrl(fileName);
+  }
+
+  /// POST /expenses/parse-receipt — calls the backend OCR service.
+  Future<ParsedReceipt> parseReceipt(String imageUrl) async {
+    final body = {'imageUrl': imageUrl};
+    final response = await _dio.post('/expenses/parse-receipt', data: body);
+    return ParsedReceipt.fromJson(response.data as Map<String, dynamic>);
+  }
 
   /// POST /expenses — records a new expense. The backend always sets the payer
   /// to the authenticated user, so [splits] should include the current user.
   /// Omit [groupId] for a peer-to-peer expense.
-  Future<void> createExpense({
+  ///
+  /// If the device is offline, the expense is saved to the local SQLite queue
+  /// and [CreateExpenseResult.savedOffline] will be `true`.
+  Future<CreateExpenseResult> createExpense({
     String? groupId,
     required double amount,
     required String description,
@@ -61,18 +108,75 @@ class ExpensesRepository {
     required String splitMode,
     required List<ExpenseSplitInput> splits,
   }) async {
+    final id = generateUuidV4();
+    final splitsJson = splits.map((s) => s.toJson()).toList();
+
     final body = <String, dynamic>{
-      'id': generateUuidV4(),
+      'id': id,
       'amount': amount,
       'description': description,
       'split_mode': splitMode,
-      'splits': splits.map((s) => s.toJson()).toList(),
+      'splits': splitsJson,
     };
     if (groupId != null) body['group_id'] = groupId;
     if (category != null && category.trim().isNotEmpty) {
       body['category'] = category.trim();
     }
-    await _dio.post('/expenses', data: body);
+
+    // Check connectivity and decide: POST or save locally
+    final isOnline = await _connectivity.checkNow();
+
+    if (isOnline) {
+      try {
+        await _dio.post('/expenses', data: body);
+        return const CreateExpenseResult(savedOffline: false);
+      } on DioException catch (e) {
+        // If network fails mid-request (e.g. flaky Wi-Fi), save offline
+        if (e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
+            e.type == DioExceptionType.connectionError) {
+          await _saveOffline(id, groupId, amount, description, category, splitMode, splitsJson);
+          return const CreateExpenseResult(savedOffline: true);
+        }
+        rethrow; // Server errors (400, 500) should still bubble up
+      }
+    } else {
+      await _saveOffline(id, groupId, amount, description, category, splitMode, splitsJson);
+      return const CreateExpenseResult(savedOffline: true);
+    }
+  }
+
+  /// Saves an expense to the local SQLite queue for later sync.
+  Future<void> _saveOffline(
+    String id,
+    String? groupId,
+    double amount,
+    String description,
+    String? category,
+    String splitMode,
+    List<Map<String, dynamic>> splitsJson,
+  ) async {
+    await _offlineDb.insertExpense({
+      'id': id,
+      'group_id': groupId,
+      'amount': amount,
+      'description': description,
+      'category': category,
+      'split_mode': splitMode,
+      'splits_json': jsonEncode(splitsJson),
+      'created_at': DateTime.now().toIso8601String(),
+      'sync_status': 0,
+    });
+  }
+
+  /// Returns all expenses pending sync (status = 0).
+  Future<List<Map<String, dynamic>>> getPendingExpenses() {
+    return _offlineDb.getExpensesByStatus(0);
+  }
+
+  /// Returns the count of pending offline expenses.
+  Future<int> getPendingCount() {
+    return _offlineDb.getPendingCount();
   }
 }
 

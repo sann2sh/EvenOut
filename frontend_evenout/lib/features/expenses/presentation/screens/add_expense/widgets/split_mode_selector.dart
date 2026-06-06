@@ -23,6 +23,7 @@ class SplitModeSelector extends StatelessWidget {
     ('equal', 'Equally', Icons.drag_handle_rounded),
     ('percentage', 'Percent', Icons.percent_rounded),
     ('exact', 'Exact', Icons.tune_rounded),
+    ('itemized', 'Items', Icons.receipt_long_rounded),
     ('chaos_roulette', 'Chaos', Icons.casino_rounded),
   ];
 

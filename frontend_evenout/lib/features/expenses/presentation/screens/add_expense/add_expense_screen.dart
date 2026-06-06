@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:frontend_evenout/core/theme/app_colors.dart';
 import 'package:frontend_evenout/features/dashboard/presentation/providers/home_provider.dart';
@@ -10,6 +11,7 @@ import 'package:frontend_evenout/features/user/data/user_repository.dart';
 import 'package:frontend_evenout/features/user/presentation/providers/user_provider.dart';
 import 'package:frontend_evenout/features/user/presentation/providers/friends_provider.dart';
 import 'package:frontend_evenout/features/expenses/data/expenses_repository.dart';
+import 'package:frontend_evenout/features/expenses/data/parsed_receipt.dart';
 import 'package:frontend_evenout/features/expenses/presentation/providers/expense_providers.dart';
 import '../chaos_roulette/chaos_roulette_screen.dart';
 import 'widgets/target_selector.dart';
@@ -63,7 +65,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   String? _groupId;
   String? _groupName;
 
-  String _splitMode = 'equal'; // equal | percentage | exact | chaos_roulette
+  String _splitMode = 'equal'; // equal | percentage | exact | chaos_roulette | itemized
+  List<ParsedItem> _scannedItems = [];
+  final Map<int, String> _itemAssignments = {}; // item index -> user id
   final Set<String> _excludedIds = {}; // group members removed from the split
   ChaosResult? _chaosResult;
 
@@ -231,6 +235,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     final List<ExpenseSplitInput> splits;
     switch (_splitMode) {
+      case 'itemized':
       case 'exact':
         double sum = 0;
         final list = <ExpenseSplitInput>[];
@@ -240,8 +245,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           list.add(ExpenseSplitInput(userId: p.id, amount: v));
         }
         if ((sum - amount).abs() > 0.01) {
+          final modeStr = _splitMode == 'itemized' ? 'Assigned totals' : 'Exact amounts';
           _snack(
-              'Exact amounts add up to Rs ${sum.toStringAsFixed(2)}, but the total is Rs ${amount.toStringAsFixed(2)}');
+              '$modeStr add up to Rs ${sum.toStringAsFixed(2)}, but the total is Rs ${amount.toStringAsFixed(2)}');
           return;
         }
         splits = list;
@@ -285,12 +291,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     setState(() => _submitting = true);
     try {
-      await ref.read(expensesRepositoryProvider).createExpense(
+      final result = await ref.read(expensesRepositoryProvider).createExpense(
             groupId: _mode == 'group' ? _groupId : null,
             amount: amount,
             description: desc,
             category: _categoryCtrl.text,
-            splitMode: _splitMode,
+            splitMode: _splitMode == 'itemized' ? 'exact' : _splitMode,
             splits: splits,
           );
 
@@ -298,7 +304,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       ref.invalidate(homeDataProvider);
 
       if (!mounted) return;
-      _snack('Expense "$desc" split successfully!', color: AppColors.settle);
+      if (result.savedOffline) {
+        _snack('Saved offline — will sync when connected', color: Colors.orange.shade700);
+      } else {
+        _snack('Expense "$desc" split successfully!', color: AppColors.settle);
+      }
       Navigator.pop(
         context,
         AddExpenseResult(title: desc, amount: amount, paidByName: 'You'),
@@ -307,6 +317,89 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       if (!mounted) return;
       setState(() => _submitting = false);
       _snack(expenseErrorMessage(e), color: AppColors.owe);
+    }
+  }
+
+  Future<void> _scanReceipt(BuildContext context) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF1E1E1E)
+          : Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
+              title: const Text('Take Photo'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
+              title: const Text('Choose from Gallery'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: source, imageQuality: 80);
+      
+      if (image == null) return;
+      
+      setState(() => _submitting = true);
+      _snack('Uploading and analyzing receipt...', color: AppColors.primary);
+
+      final repo = ref.read(expensesRepositoryProvider);
+      
+      // 1. Upload to Supabase Storage
+      final bytes = await image.readAsBytes();
+      final ext = image.name.split('.').last;
+      final imageUrl = await repo.uploadReceipt(bytes, ext);
+
+      // 2. Parse Receipt via backend OCR
+      final parsed = await repo.parseReceipt(imageUrl);
+
+      if (!mounted) return;
+
+      // 3. Auto-populate UI
+      setState(() {
+        _amountCtrl.text = parsed.total > 0 ? parsed.total.toStringAsFixed(2) : '';
+        
+        // Build a detailed description including items
+        final descBuf = StringBuffer();
+        descBuf.write(parsed.merchant ?? 'Receipt Expense');
+        if (parsed.items.isNotEmpty) {
+          descBuf.writeln('\n\n--- Scanned Items ---');
+          for (final item in parsed.items) {
+            descBuf.writeln('${item.name} (x${item.quantity}) - Rs ${item.lineTotal.toStringAsFixed(2)}');
+          }
+        }
+        _descCtrl.text = descBuf.toString();
+        
+        _scannedItems = parsed.items;
+        
+        // Default to itemized if there are items, else equal
+        if (_scannedItems.isNotEmpty) {
+          _splitMode = 'itemized';
+        }
+        
+        _submitting = false;
+      });
+      
+      _snack('Receipt parsed successfully!', color: AppColors.settle);
+
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      _snack('Failed to parse receipt: $e', color: AppColors.owe);
     }
   }
 
@@ -367,6 +460,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               color: textColor, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.document_scanner_rounded, color: AppColors.primary),
+            onPressed: () => _scanReceipt(context),
+            tooltip: 'Scan Receipt',
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
         bottom: false,
@@ -585,6 +686,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       return _chaosSection(parts, cardColor, textColor, subtextColor);
     }
 
+    // Itemized mode has its own dedicated UI.
+    if (_splitMode == 'itemized') {
+      return _itemizedSection(parts, cardColor, textColor, subtextColor, isDark);
+    }
+
     // For groups, allow toggling members in/out of the split.
     final allGroupMembers = _mode == 'group'
         ? (members ?? const <GroupMemberUser>[])
@@ -734,6 +840,112 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         ),
       ),
     );
+  }
+
+  void _recalculateItemizedExactAmounts(List<ExpenseParticipant> parts) {
+    final totals = <String, double>{};
+    for (final p in parts) totals[p.id] = 0.0;
+    
+    for (int i = 0; i < _scannedItems.length; i++) {
+      final userId = _itemAssignments[i];
+      if (userId != null && totals.containsKey(userId)) {
+        totals[userId] = totals[userId]! + _scannedItems[i].lineTotal;
+      }
+    }
+    
+    for (final p in parts) {
+      _exactCtrls[p.id] ??= TextEditingController();
+      _exactCtrls[p.id]!.text = (totals[p.id] ?? 0.0).toStringAsFixed(2);
+    }
+  }
+
+  Widget _itemizedSection(List<ExpenseParticipant> parts, Color cardColor,
+      Color textColor, Color subtextColor, bool isDark) {
+    if (_scannedItems.isEmpty) {
+      return _infoCard('No parsed items found. Scan a receipt first.', cardColor, subtextColor);
+    }
+
+    final children = <Widget>[];
+
+    for (int i = 0; i < _scannedItems.length; i++) {
+      final item = _scannedItems[i];
+      final assignedUserId = _itemAssignments[i];
+
+      children.add(Container(
+        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.name, style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+                  Text('Qty: ${item.quantity}  •  Rs ${item.lineTotal.toStringAsFixed(2)}', style: TextStyle(fontSize: 12, color: subtextColor)),
+                ],
+              ),
+            ),
+            DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: assignedUserId,
+                hint: Text('Assign', style: TextStyle(fontSize: 12, color: AppColors.primary)),
+                icon: const Icon(Icons.arrow_drop_down, size: 20),
+                isDense: true,
+                items: parts.map((p) {
+                  return DropdownMenuItem<String>(
+                    value: p.id,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _avatar(p, 10),
+                        const SizedBox(width: 8),
+                        Text(p.name, style: TextStyle(fontSize: 12, color: textColor)),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() {
+                      _itemAssignments[i] = val;
+                      _recalculateItemizedExactAmounts(parts);
+                    });
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ));
+    }
+    
+    children.add(const SizedBox(height: 12));
+    children.add(_sectionLabel('Assigned Totals', textColor));
+    children.add(const SizedBox(height: 8));
+
+    for (final p in parts) {
+      final totalStr = _exactCtrls[p.id]?.text ?? '0.00';
+      final total = double.tryParse(totalStr) ?? 0.0;
+      if (total > 0) {
+        children.add(Padding(
+          padding: const EdgeInsets.only(bottom: 4, left: 4, right: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(p.name, style: TextStyle(color: textColor)),
+              Text('Rs ${total.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+            ],
+          ),
+        ));
+      }
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
   }
 
   Widget _chaosSection(List<ExpenseParticipant> parts, Color cardColor,
