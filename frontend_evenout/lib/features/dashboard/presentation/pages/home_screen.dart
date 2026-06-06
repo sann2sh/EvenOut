@@ -5,6 +5,7 @@ import '../providers/home_provider.dart';
 import '../../../user/presentation/pages/user_search_sheet.dart';
 import '../../../user/presentation/pages/friend_requests_sheet.dart';
 import '../../../user/presentation/providers/friend_requests_provider.dart';
+import '../../../user/presentation/providers/user_provider.dart';
 
 // Riverpod provider to manage balance visibility state
 final balanceVisibilityProvider = StateProvider<bool>((ref) => true);
@@ -234,7 +235,7 @@ class HomeScreen extends ConsumerWidget {
                                   ),
                                   itemBuilder: (context, index) {
                                     final friend = friends[index];
-                                    return _buildFriendTile(friend, textColor, subtextColor, isDark, isBalanceVisible);
+                                    return _buildFriendTile(context, ref, friend, textColor, subtextColor, isDark, isBalanceVisible);
                                   },
                                 ),
                               ),
@@ -274,7 +275,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildFriendTile(FriendWithBalance friend, Color textColor, Color subtextColor, bool isDark, bool isBalanceVisible) {
+  Widget _buildFriendTile(BuildContext context, WidgetRef ref, FriendWithBalance friend, Color textColor, Color subtextColor, bool isDark, bool isBalanceVisible) {
     String balanceText = 'settled';
     Color balanceColor = isDark ? Colors.white38 : Colors.grey;
 
@@ -339,8 +340,34 @@ class HomeScreen extends ConsumerWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(width: 8),
-          Icon(Icons.keyboard_arrow_right, color: subtextColor, size: 20),
+          if (friend.netBalance > 0) ...[
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.notifications_active_rounded, color: AppColors.primary, size: 20),
+              tooltip: 'Send Nudge',
+              onPressed: () async {
+                try {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Sending nudge...')),
+                  );
+                  final userRepo = ref.read(userRepositoryProvider);
+                  await userRepo.sendNudge(friend.id);
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Nudge sent! 🔔'), backgroundColor: AppColors.settle),
+                  );
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to send nudge: $e'), backgroundColor: AppColors.owe),
+                  );
+                }
+              },
+            ),
+          ] else ...[
+            const SizedBox(width: 8),
+            Icon(Icons.keyboard_arrow_right, color: subtextColor, size: 20),
+          ],
         ],
       ),
       onTap: () {},

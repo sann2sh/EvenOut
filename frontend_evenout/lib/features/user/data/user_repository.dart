@@ -47,11 +47,13 @@ class UserRepository {
     String? username,
     String? displayName,
     String? phoneNumber,
+    String? fcmToken,
   }) async {
     final body = <String, dynamic>{};
     if (username != null) body['username'] = username;
     if (displayName != null) body['display_name'] = displayName;
     if (phoneNumber != null) body['phone_number'] = phoneNumber;
+    if (fcmToken != null) body['fcm_token'] = fcmToken;
 
     final response = await _dio.patch('/users/me', data: body);
     return UserModel.fromJson(response.data as Map<String, dynamic>);
@@ -74,5 +76,9 @@ class UserRepository {
       if (e.response?.statusCode == 404) return true; // no results = available
       rethrow;
     }
+  }
+
+  Future<void> sendNudge(String debtorId) async {
+    await _dio.post('/nudges/send', data: {'debtor_id': debtorId});
   }
 }

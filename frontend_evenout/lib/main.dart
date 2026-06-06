@@ -7,13 +7,19 @@ import 'core/session/session_reset.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'core/storage/secure_local_storage.dart';
 import 'core/offline/offline_database.dart';
 import 'core/offline/sync_service.dart';
+import 'features/user/presentation/providers/user_provider.dart';
+import 'core/notifications/fcm_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Initialize Firebase
+  await Firebase.initializeApp();
+
   // Initialize Supabase with Secure Storage
   await Supabase.initialize(
     url: 'https://qxzdjxzdboqnnhxnzqox.supabase.co',
@@ -53,17 +59,23 @@ class _EvenOutAppState extends ConsumerState<EvenOutApp> {
     ref.listen(authStateProvider, (_, next) {
       final newUserId = next.value?.session?.user.id;
 
-      // Ignore the first emission (the restored/current session at launch);
-      // there's nothing stale to clear yet.
       if (!_seenInitialAuthEvent) {
         _seenInitialAuthEvent = true;
         _lastUserId = newUserId;
+        if (newUserId != null) {
+          final userRepo = ref.read(userRepositoryProvider);
+          FcmService.instance.initialize(userRepo);
+        }
         return;
       }
 
       if (newUserId != _lastUserId) {
         clearUserScopedProviders(ref);
         _lastUserId = newUserId;
+        if (newUserId != null) {
+          final userRepo = ref.read(userRepositoryProvider);
+          FcmService.instance.initialize(userRepo);
+        }
       }
     });
 
