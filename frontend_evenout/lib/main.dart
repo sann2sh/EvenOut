@@ -8,6 +8,8 @@ import 'features/auth/presentation/providers/auth_provider.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/storage/secure_local_storage.dart';
+import 'core/offline/offline_database.dart';
+import 'core/offline/sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +23,8 @@ void main() async {
     ),
   );
   
-  // Initialize Isar here later
+  // Initialize offline SQLite database
+  await OfflineDatabase.instance.database;
   
   runApp(
     const ProviderScope(
@@ -63,6 +66,9 @@ class _EvenOutAppState extends ConsumerState<EvenOutApp> {
         _lastUserId = newUserId;
       }
     });
+
+    // Eagerly instantiate the SyncService so it runs in the background
+    ref.listen(syncServiceProvider, (_, __) {});
 
     final themeMode = ref.watch(themeModeProvider);
     final router = ref.watch(goRouterProvider);

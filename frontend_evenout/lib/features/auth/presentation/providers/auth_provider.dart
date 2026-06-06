@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/storage/secure_local_storage.dart';
 
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
@@ -53,7 +54,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<void>> {
     try {
       await _supabase.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: 'io.supabase.evenout://login-callback/',
+        redirectTo: kIsWeb ? 'http://localhost:3000' : 'io.supabase.evenout://login-callback/',
       );
       state = const AsyncData(null);
     } catch (e, st) {

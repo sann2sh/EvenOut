@@ -6,6 +6,7 @@ import '../../../../core/theme/theme_provider.dart';
 import 'stats_dashboard_screen.dart';
 import '../../../user/presentation/providers/user_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/offline/sync_service.dart';
 
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
@@ -295,7 +296,7 @@ class AccountScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
 
-                  // Isar Queue Status Card
+                  // Offline Queue Status Card
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -317,7 +318,23 @@ class AccountScreen extends ConsumerWidget {
                             children: [
                               Text('Offline Action Queue', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textColor)),
                               const SizedBox(height: 2),
-                              Text('Isar database synced (0 pending requests)', style: TextStyle(fontSize: 12, color: subtextColor)),
+                              Consumer(
+                                builder: (context, ref, _) {
+                                  final pendingCountAsync = ref.watch(pendingOfflineExpensesCountProvider);
+                                  return pendingCountAsync.when(
+                                    data: (count) => Text(
+                                      count > 0 ? 'SQLite queue active ($count pending)' : 'SQLite queue synced (0 pending)',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: count > 0 ? Colors.orange.shade600 : subtextColor,
+                                        fontWeight: count > 0 ? FontWeight.bold : FontWeight.normal,
+                                      ),
+                                    ),
+                                    loading: () => Text('Checking queue...', style: TextStyle(fontSize: 12, color: subtextColor)),
+                                    error: (_, __) => Text('Queue error', style: TextStyle(fontSize: 12, color: Colors.red.shade400)),
+                                  );
+                                },
+                              ),
                             ],
                           ),
                         ),
