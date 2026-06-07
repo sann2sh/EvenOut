@@ -27,23 +27,43 @@ export class NudgesService {
     // Verify debt exists
     const { data: balances, error: balanceError } = await client
       .from('peer_balances')
-      .select('net_debt')
-      .eq('user_id', debtorId)
-      .eq('counterpart_id', creditorId);
+      .select('*')
+      .or(`and(user_id.eq.${debtorId},counterpart_id.eq.${creditorId}),and(user_id.eq.${creditorId},counterpart_id.eq.${debtorId})`);
 
     if (balanceError) {
       console.error('Error fetching balances:', balanceError);
       throw new InternalServerErrorException(`Error checking balances: ${balanceError.message}`);
     }
 
-    // Since a pair might be in multiple groups, sum the total debt
+    // Since a pair might be in multiple groups and have bidirectional debts, calculate the net total
     let totalDebt = 0;
+    // const debugTrace: string[] = [];
+
     for (const b of balances || []) {
-      totalDebt += parseFloat(b.net_debt);
+      const amount = parseFloat(b.net_debt);
+      if (b.user_id === debtorId && b.counterpart_id === creditorId) {
+        // Debtor owes Creditor
+        totalDebt += amount;
+        // debugTrace.push(`[Group: ${b.group_id || 'P2P'}] Debtor(${debtorId}) owes Creditor(${creditorId}): ${amount} -> Running Total: ${totalDebt}`);
+      } else if (b.user_id === creditorId && b.counterpart_id === debtorId) {
+        // Creditor owes Debtor
+        totalDebt -= amount;
+        // debugTrace.push(`[Group: ${b.group_id || 'P2P'}] Creditor(${creditorId}) owes Debtor(${debtorId}): ${amount} -> Running Total: ${totalDebt}`);
+      } else {
+        // debugTrace.push(`[Group: ${b.group_id || 'P2P'}] Ignored Row (Self-Debt or Mismatch): user_id=${b.user_id}, counterpart_id=${b.counterpart_id}`);
+      }
     }
 
-    if (totalDebt <= 0) {
-      throw new BadRequestException("This user doesn't owe you any money.");
+    // console.log(`\n=== NUDGE DEBUG FOR CREDITOR: ${creditorId} | DEBTOR: ${debtorId} ===`);
+    // console.log(debugTrace.join('\n'));
+    // console.log(`Final calculated debt: ${totalDebt}\n======================================================\n`);
+
+    if (totalDebt <= 0.01) {
+      throw new BadRequestException({
+        message: "This user doesn't owe you any money overall.",
+        // debug: debugTrace,
+        // finalDebt: totalDebt
+      });
     }
 
     // Get creditor name and debtor token
@@ -78,6 +98,11 @@ export class NudgesService {
       { type: 'nudge', creditorId }
     );
 
-    return { success: true, message: "Nudge sent successfully!" };
+    return { 
+      success: true, 
+      message: "Nudge sent successfully!"
+      // debugTrace,
+      // calculatedAmountSent: totalDebt.toFixed(2)
+    };
   }
 }
